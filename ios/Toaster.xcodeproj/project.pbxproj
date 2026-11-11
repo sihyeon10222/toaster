@@ -15,6 +15,7 @@
 		575A972B9227031E2538CCBD /* JobModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4E2E00AA3468779893311F /* JobModel.swift */; };
 		7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A437F66E13BDD515F596FD /* ElementPicker.swift */; };
 		8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA609ED4C52C0A98C704F350 /* SaveFolder.swift */; };
+		8D7DAB35D7EC7C6BB6E750E4 /* Instagram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3715C7AAE9062BAE846B5D88 /* Instagram.swift */; };
 		90EF4BDB33AC85D327C5DC8C /* SVGRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */; };
 		9B75B967011C713E630C82EC /* Kakao.swift in Sources */ = {isa = PBXBuildFile; fileRef = D984814AD1941C2920364CB1 /* Kakao.swift */; };
 		A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4513051A5753B70A03C6AF /* JobResultView.swift */; };
@@ -35,6 +36,7 @@
 		2C4E2E00AA3468779893311F /* JobModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobModel.swift; sourceTree = "<group>"; };
 		347F30CB194508E063D6830C /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sticker.swift; sourceTree = "<group>"; };
+		3715C7AAE9062BAE846B5D88 /* Instagram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instagram.swift; sourceTree = "<group>"; };
 		385A511C0DAE2338271FAEB1 /* ImageLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLook.swift; sourceTree = "<group>"; };
 		72710542F750FE44A2A04466 /* Toaster.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Toaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8221D664D5D8214EDFCC4156 /* ToasterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToasterApp.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 				BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */,
 				385A511C0DAE2338271FAEB1 /* ImageLook.swift */,
 				09B16E5AF26E59672631FCB2 /* Info.plist */,
+				3715C7AAE9062BAE846B5D88 /* Instagram.swift */,
 				2C4E2E00AA3468779893311F /* JobModel.swift */,
 				FF4513051A5753B70A03C6AF /* JobResultView.swift */,
 				124D167D6FB9684C816516B6 /* JobStore.swift */,
@@ -171,6 +174,7 @@
 				7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */,
 				09450940723E8EBB82047562 /* Housekeeping.swift in Sources */,
 				BFB10AF38E7B1C6987A426EE /* ImageLook.swift in Sources */,
+				8D7DAB35D7EC7C6BB6E750E4 /* Instagram.swift in Sources */,
 				575A972B9227031E2538CCBD /* JobModel.swift in Sources */,
 				A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */,
 				BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */,
@@ -205,7 +209,8 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -303,7 +308,8 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

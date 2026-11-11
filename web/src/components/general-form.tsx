@@ -33,7 +33,7 @@ export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => v
 
   const startScan = (target = url) => {
     setError(null);
-    void scan.scan(target, media);
+    void scan.scan(target, media, setMedia);
   };
 
   const submit = (e: React.FormEvent) => {

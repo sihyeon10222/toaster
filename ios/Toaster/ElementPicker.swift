@@ -25,7 +25,8 @@ final class PageScan {
     /// 지금 주소·렌더링 설정으로 아직 훑어보지 않았다
     func needsScan(url: String, render: Bool) -> Bool { key != Self.key(url, render) }
 
-    func scan(url: String, render: Bool, media: Media) {
+    /// onMedia: 고른 받을 종류에 맞는 게 하나도 없으면(예: 릴스인데 "이미지") "둘 다" 로 바꿔 달라고 알린다
+    func scan(url: String, render: Bool, media: Media, onMedia: @escaping (Media) -> Void = { _ in }) {
         task?.cancel()
         let key = Self.key(url, render)
         self.key = key
@@ -35,7 +36,10 @@ final class PageScan {
         task = Task {
             do {
                 let (html, finalURL) = try await Collector.loadPage(url, render: render)
-                let found = try await Task.detached { try Collector.scanElements(html: html, pageURL: finalURL) }.value
+                let instagram = Instagram.code(url) != nil
+                let found = try await Task.detached {
+                    try Collector.scanElements(html: html, pageURL: finalURL, instagram: instagram)
+                }.value
                 guard self.key == key else { return }
                 groups = found
                 pageURL = finalURL
@@ -44,7 +48,14 @@ final class PageScan {
                         ? "이 페이지에서 이미지·영상을 찾지 못했습니다."
                         : "이미지·영상을 찾지 못했습니다. 자바스크립트로 그리는 페이지라면 위 스위치를 켜고 다시 살펴보세요.")
                     : .loaded
-                fitSelection(to: media)
+                let fitted: Media = visible(media).isEmpty && !found.isEmpty ? .all : media
+                if fitted != media { onMedia(fitted) }
+                if instagram {
+                    // 인스타그램 게시물은 사진·영상을 모두 골라 둔다 (게시물 하나를 통째로 받는 경우가 대부분)
+                    selected = Set(visible(fitted).map(\.id))
+                } else {
+                    fitSelection(to: fitted)
+                }
             } catch {
                 guard self.key == key, !Task.isCancelled else { return }
                 phase = .failed(error.localizedDescription)
@@ -199,7 +210,7 @@ private struct GroupRow: View {
 
     private var title: String {
         let kind = group.isVideo ? "영상" : "이미지"
-        return group.isEverything ? "페이지의 모든 \(kind)" : "\(kind) 묶음"
+        return group.label ?? (group.isEverything ? "페이지의 모든 \(kind)" : "\(kind) 묶음")
     }
 
     var body: some View {

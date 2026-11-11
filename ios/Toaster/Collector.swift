@@ -82,10 +82,18 @@ enum Collector {
         let urls: [URL]
         do {
             let (html, finalURL) = try await loadPage(input.url, render: input.render)
-            let found = try extract(html: html, pageURL: finalURL, selector: input.selector)
+            // 인스타그램 게시물에서 "게시물의 사진/영상" 을 골랐으면 퍼가기 페이지의 데이터를 그대로 쓴다
+            let found: (urls: [URL], title: String)
+            if Instagram.code(input.url) != nil, Instagram.isToken(input.selector) {
+                let ig = Instagram.items(html: html)
+                found = (Instagram.pick(ig.items, selector: input.selector), ig.title)
+            } else {
+                found = try extract(html: html, pageURL: finalURL, selector: input.selector)
+            }
             pageURL = finalURL
             urls = found.urls
-            job.url = finalURL.absoluteString
+            // 인스타그램은 속으로 퍼가기 페이지를 읽지만 화면에는 붙여 넣은 주소를 보여 준다
+            job.url = Instagram.code(input.url) != nil ? input.url : finalURL.absoluteString
             job.title = found.title
         } catch {
             job.status = .failed
@@ -181,6 +189,8 @@ enum Collector {
         guard let url = URL(string: address.trimmingCharacters(in: .whitespaces)),
               ["http", "https"].contains(url.scheme?.lowercased())
         else { throw CollectError(message: "http 또는 https 주소를 넣어 주세요.") }
+        // 인스타그램 게시물·릴스는 로그인 없이 볼 수 있는 퍼가기 페이지를 대신 읽는다
+        if let code = Instagram.code(address) { return try await fetchHTML(Instagram.embedURL(code)) }
         return render ? try await PageRenderer.render(url) : try await fetchHTML(url)
     }
 
@@ -388,6 +398,8 @@ struct ElementGroup: Identifiable, Hashable, Sendable {
     let previews: [URL]
     /// "페이지의 모든 이미지/영상"
     let isEverything: Bool
+    /// 화면에 보여 줄 이름 (없으면 "이미지 묶음" 처럼 만든다)
+    var label: String? = nil
 
     var id: String { selector }
 }
@@ -402,7 +414,8 @@ extension Collector {
 
     /// 페이지 안의 이미지·영상을 "태그.클래스" 모양이 같은 것끼리 묶는다.
     /// 묶음마다 만든 선택자를 실제 받기와 같은 규칙(mediaURLs)으로 다시 돌려 개수·미리보기를 정확히 맞춘다.
-    static func scanElements(html: String, pageURL: URL) throws -> [ElementGroup] {
+    static func scanElements(html: String, pageURL: URL, instagram: Bool = false) throws -> [ElementGroup] {
+        if instagram { return try instagramGroups(html) }
         let doc = try SwiftSoup.parse(html, pageURL.absoluteString)
         let base = baseURL(doc, pageURL)
 
@@ -465,6 +478,29 @@ extension Collector {
             a.element.count != b.element.count ? a.element.count > b.element.count : a.offset < b.offset
         }.map(\.element)
         return result + ordered.prefix(maxGroups)
+    }
+
+    /// 인스타그램은 게시물 안의 사진·영상을 두 묶음으로 보여 준다
+    private static func instagramGroups(_ html: String) throws -> [ElementGroup] {
+        let items = Instagram.items(html: html).items
+        guard !items.isEmpty else {
+            throw CollectError(message: "인스타그램 게시물을 읽지 못했습니다. 비공개 계정이거나 지워진 게시물일 수 있습니다.")
+        }
+        let photos = items.filter { !$0.isVideo }, videos = items.filter(\.isVideo)
+        var groups: [ElementGroup] = []
+        if !photos.isEmpty {
+            groups.append(ElementGroup(
+                selector: Instagram.imagesToken, isVideo: false, count: photos.count,
+                previews: photos.prefix(4).compactMap(\.preview), isEverything: true, label: "게시물의 사진"
+            ))
+        }
+        if !videos.isEmpty {
+            groups.append(ElementGroup(
+                selector: Instagram.videosToken, isVideo: true, count: videos.count,
+                previews: videos.prefix(4).compactMap(\.preview), isEverything: true, label: "게시물의 영상"
+            ))
+        }
+        return groups
     }
 
     /// 1x1 추적 픽셀 같은 것

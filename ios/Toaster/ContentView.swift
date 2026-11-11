@@ -70,7 +70,7 @@ struct ContentView: View {
             if let page = UserDefaults.standard.string(forKey: "autoPage"), pageURL.isEmpty {
                 mode = .general
                 pageURL = page
-                scan.scan(url: page, render: render, media: media)
+                scan.scan(url: page, render: render, media: media) { media = $0 }
             }
         }
         #endif
@@ -149,7 +149,7 @@ struct ContentView: View {
         let entry = store.start(
             mode: .general, title: title,
             input: CollectInput(url: url, selector: scan.selector(for: media), media: media, render: render),
-            folderName: parsed?.host() ?? "toaster"
+            folderName: Instagram.code(url).map { "instagram_\($0)" } ?? parsed?.host() ?? "toaster"
         )
         path.append(entry.id)
     }
@@ -188,7 +188,7 @@ private struct KakaoForm: View {
                 FieldLabel(text: "이모티콘 링크")
                 HStack(spacing: 8) {
                     HStack(spacing: 6) {
-                        TextField("공유 링크 또는 끝주소", text: $input)
+                        TextField(Kakao.linkPlaceholder, text: $input)
                             .font(.system(size: 15))
                             .urlInput()
                             .submitLabel(.go)
@@ -202,7 +202,7 @@ private struct KakaoForm: View {
                     .fieldChrome(focused: focused)
                     PasteLinkButton { text in
                         input = text
-                        error = Kakao.parseSlug(text) == nil ? "복사한 내용이 이모티콘 링크가 아닙니다." : nil
+                        error = Kakao.parseSlug(text) == nil ? "복사한 내용이 https://e.kakao.com/ 이모티콘 링크가 아닙니다." : nil
                     }
                 }
                 Hint(text: preview.map { "\(Kakao.emoticonURL(slug: $0)) 에서 받습니다." }
@@ -219,7 +219,7 @@ private struct KakaoForm: View {
 
     private func submit() {
         guard let slug = Kakao.parseSlug(input) else {
-            error = "이모티콘 링크 형식이 아닙니다. 카카오톡 이모티콘샵에서 공유한 링크를 넣어 주세요."
+            error = "https://e.kakao.com/ 으로 시작하는 이모티콘샵 링크만 받을 수 있습니다. 카카오톡 이모티콘샵에서 공유 → 링크 복사한 주소를 넣어 주세요."
             return
         }
         focused = false
@@ -303,7 +303,7 @@ private struct GeneralForm: View {
 
     private func startScan() {
         focused = false
-        scan.scan(url: pageURL, render: render, media: media)
+        scan.scan(url: pageURL, render: render, media: media) { media = $0 }
     }
 }
 

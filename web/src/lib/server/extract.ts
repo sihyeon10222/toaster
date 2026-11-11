@@ -138,6 +138,8 @@ export interface ElementGroup {
   previews: string[];
   /** "페이지의 모든 이미지/영상" */
   isEverything: boolean;
+  /** 화면에 보여 줄 이름 (없으면 "이미지 묶음" 처럼 만든다) */
+  label?: string;
 }
 
 // 상태에 따라 붙었다 떨어지는 클래스는 묶음 이름에 쓰지 않는다

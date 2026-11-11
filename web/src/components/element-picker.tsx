@@ -14,6 +14,7 @@ export interface ElementGroup {
   count: number;
   previews: string[];
   isEverything: boolean;
+  label?: string;
 }
 
 type Phase = { kind: "idle" } | { kind: "loading" } | { kind: "loaded" } | { kind: "failed"; message: string };
@@ -43,7 +44,8 @@ export function usePageScan() {
   const [scannedUrl, setScannedUrl] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
 
-  const scan = useCallback(async (url: string, media: Media) => {
+  /** onMedia: 고른 받을 종류에 맞는 게 하나도 없으면(예: 릴스인데 "이미지") "둘 다" 로 바꿔 달라고 알린다 */
+  const scan = useCallback(async (url: string, media: Media, onMedia?: (m: Media) => void) => {
     controller.current?.abort();
     const c = new AbortController();
     controller.current = c;
@@ -58,7 +60,11 @@ export function usePageScan() {
       const found: ElementGroup[] = body.groups;
       setGroups(found);
       setPageUrl(body.url);
-      setSelected(fitSelection(new Set(), found, media));
+      const fitted = visible(found, media).length === 0 && found.length > 0 ? "all" : media;
+      if (fitted !== media) onMedia?.(fitted);
+      // 인스타그램 게시물은 사진·영상을 모두 골라 둔다 (게시물 하나를 통째로 받는 경우가 대부분)
+      const all = found.every((g) => g.label);
+      setSelected(all ? new Set(visible(found, fitted).map((g) => g.selector)) : fitSelection(new Set(), found, fitted));
       setPhase(
         found.length > 0
           ? { kind: "loaded" }
@@ -240,7 +246,7 @@ function GroupRow({
   onToggle: () => void;
 }) {
   const kind = group.isVideo ? "영상" : "이미지";
-  const title = group.isEverything ? `페이지의 모든 ${kind}` : `${kind} 묶음`;
+  const title = group.label ?? (group.isEverything ? `페이지의 모든 ${kind}` : `${kind} 묶음`);
   return (
     <button
       type="button"
