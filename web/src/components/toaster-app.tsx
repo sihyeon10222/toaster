@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { GeneralForm } from "@/components/general-form";
 import { GearIcon, Spinner, TrashIcon, XIcon } from "@/components/icons";
 import { KakaoForm } from "@/components/kakao-form";
@@ -19,6 +19,9 @@ const MODES: { value: Mode; label: string }[] = [
   { value: "general", label: "일반 페이지" },
 ];
 const DEFAULT_MODE: Mode = "kakao";
+
+/** 저장할 zip 이름: 끝주소·사이트 주소의 - 를 _ 로 (iOS 앱의 폴더 이름과 같은 규칙) */
+const saveName = (name: string) => name.replaceAll("-", "_");
 
 // 모드는 주소 해시(#kakao, #general)로 관리해서 링크로 바로 열 수 있게 한다
 const subscribe = (onChange: () => void) => {
@@ -193,7 +196,6 @@ export function ToasterApp() {
   // 앱 초기화 때 바꿔서 입력 폼을 처음 상태로 다시 그린다
   const [formKey, setFormKey] = useState(0);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const savedJobs = useRef(new Set<string>());
   // 텔레그램 스티커 변환 진행 상황과 실패 목록 (작업별)
   const [stickerProgress, setStickerProgress] = useState<Record<string, StickerProgress>>({});
   const [stickerErrors, setStickerErrors] = useState<Record<string, string[]>>({});
@@ -210,7 +212,6 @@ export function ToasterApp() {
       localStorage.clear();
       sessionStorage.clear();
     } catch {}
-    savedJobs.current.clear();
     setStickerProgress({});
     setStickerErrors({});
     setSwipedKey(null);
@@ -252,16 +253,6 @@ export function ToasterApp() {
     }
   };
 
-  // 카카오 작업이 끝나면 <끝주소>.zip 을 한 번 자동으로 저장
-  useEffect(() => {
-    for (const e of entries) {
-      if (e.mode === "kakao" && e.job?.status === "done" && !savedJobs.current.has(e.key)) {
-        savedJobs.current.add(e.key);
-        void downloadZip(e);
-      }
-    }
-  });
-
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <aside className="flex flex-col gap-8 border-b border-line bg-surface px-5 py-7 sm:px-8 lg:sticky lg:top-0 lg:h-dvh lg:w-[400px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
@@ -287,7 +278,7 @@ export function ToasterApp() {
               onSubmit={(slug) =>
                 start(
                   { url: kakaoEmoticonUrl(slug), selector: KAKAO_EMOTICON_SELECTOR, media: "image" },
-                  { mode: "kakao", title: slug, zipName: `${slug}.zip` },
+                  { mode: "kakao", title: slug, zipName: `${saveName(slug)}.zip` },
                 )
               }
             />
@@ -301,7 +292,7 @@ export function ToasterApp() {
                 try {
                   const u = new URL(input.url);
                   title = u.hostname + (u.pathname === "/" ? "" : u.pathname);
-                  zipName = `${u.hostname}.zip`;
+                  zipName = `${saveName(u.hostname)}.zip`;
                 } catch {}
                 start(input, { mode: "general", title, zipName });
               }}
