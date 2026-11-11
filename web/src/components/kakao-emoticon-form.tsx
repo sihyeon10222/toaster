@@ -2,22 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ErrorBox, JobResult } from "@/components/job-result";
+import { saveFromUrl } from "@/lib/download";
 import { KAKAO_EMOTICON_SELECTOR, kakaoEmoticonUrl, parseKakaoSlug } from "@/lib/kakao";
 import { useToasterJob } from "@/lib/use-toaster-job";
 
 /** 서버 zip 을 받아 `<slug>.zip` 이름으로 저장. 실패하면 서버 주소로 바로 이동. */
 async function saveZip(zipUrl: string, filename: string) {
   try {
-    const res = await fetch(zipUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blobUrl = URL.createObjectURL(await res.blob());
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    // 서버가 주는 이름(toaster-xxxx.zip) 대신 slug 이름을 쓰기 위해 fallback 이 아닌 고정 이름으로 저장
+    await saveFromUrl(zipUrl, filename, { preferFallbackName: true });
   } catch {
     window.location.href = zipUrl;
   }
