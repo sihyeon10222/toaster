@@ -1,299 +1,302 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("apiURL") private var apiURL = ToasterAPI.defaultBaseURL
+    @State private var store = JobStore()
+    @State private var folder = SaveFolder()
+    @State private var showingSettings = false
+    @State private var mode: Mode = .kakao
+    @State private var path: [String] = []
+
+    // 입력값은 여기 두어 모드를 바꿔도 남게 한다
+    @State private var kakaoInput = ""
+    @State private var pageURL = ""
+    @State private var selector = "img"
+    @State private var render = false
+    @State private var media: Media = .image
 
     var body: some View {
-        // 탭을 바꿔도 진행 중인 작업이 사라지지 않게 각 탭이 자기 JobModel 을 갖는다
-        TabView {
-            KakaoEmoticonView(apiURL: $apiURL)
-                .tabItem { Label("카카오 이모티콘", systemImage: "face.smiling") }
-            GeneralPageView(apiURL: $apiURL)
-                .tabItem { Label("일반 페이지", systemImage: "globe") }
+        NavigationStack(path: $path) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    header
+
+                    VStack(alignment: .leading, spacing: 22) {
+                        PillSegmented(selection: $mode, options: Mode.allCases.map { ($0, $0.title) })
+                        switch mode {
+                        case .kakao: KakaoForm(input: $kakaoInput, onSubmit: startKakao)
+                        case .general:
+                            GeneralForm(pageURL: $pageURL, selector: $selector, render: $render, media: $media, onSubmit: startGeneral)
+                        }
+                    }
+                    .card()
+
+                    history
+
+                    Text("받은 파일은 저작권자의 권리를 지켜 개인 용도로만 사용해 주세요.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.tMuted)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
+                .frame(maxWidth: 640)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(Color.tBg)
+            .hiddenNavigationBar()
+            .navigationDestination(for: String.self) { id in
+                if let entry = store.entry(id) { JobResultView(entry: entry) }
+            }
+        }
+        .tint(.tInk)
+        .environment(folder)
+        .sheet(isPresented: $showingSettings) { SettingsView().environment(folder) }
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 640)
+        #endif
+        #if DEBUG
+        // 개발용: `-autoKakao <끝주소>` 로 실행하면 바로 받기를 시작한다 (여러 기기 동시 테스트용, 출시 빌드에는 없음)
+        .task {
+            if let slug = UserDefaults.standard.string(forKey: "autoKakao"), store.entries.isEmpty {
+                kakaoInput = slug
+                startKakao(slug)
+            }
+        }
+        #endif
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text("toaster").font(.system(size: 34, weight: .heavy)).tracking(-1.4)
+                Circle()
+                    .fill(Color.tAccent)
+                    .overlay { Circle().strokeBorder(Color.tInk.opacity(0.1)) }
+                    .frame(width: 10, height: 10)
+            }
+            Text("이모티콘·이미지·영상 수집기").font(.system(size: 14)).foregroundStyle(Color.tMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .topTrailing) {
+            Button { showingSettings = true } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color.tMuted)
+                    .frame(width: 40, height: 40)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("설정")
+        }
+        .padding(.top, 4)
+    }
+
+    private var history: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("최근 작업").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.tMuted)
+            if store.entries.isEmpty {
+                Text("아직 작업이 없습니다. 위에서 링크를 붙여 넣고 받기를 눌러 보세요.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.tMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(padding: 18)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(store.entries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 { Divider().overlay(Color.tLine).padding(.leading, 48) }
+                        NavigationLink(value: entry.id) { HistoryRow(entry: entry) }
+                            .buttonStyle(.plain)
+                    }
+                }
+                .card(padding: 4)
+            }
         }
     }
-}
 
-private func makeAPI(_ apiURL: String) -> ToasterAPI? {
-    URL(string: apiURL.trimmingCharacters(in: .whitespaces)).map(ToasterAPI.init(baseURL:))
-}
+    private func startKakao(_ slug: String) {
+        let entry = store.start(
+            mode: .kakao, title: slug,
+            input: CollectInput(url: Kakao.emoticonURL(slug: slug), selector: Kakao.emoticonSelector),
+            folderName: slug
+        )
+        path.append(entry.id)
+    }
 
-/// 서버 설정 버튼과 시트
-private struct SettingsToolbar: ViewModifier {
-    @Binding var apiURL: String
-    @State private var showSettings = false
-
-    func body(content: Content) -> some View {
-        content
-            .toolbar {
-                Button("서버 설정", systemImage: "gearshape") { showSettings = true }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView(apiURL: $apiURL)
-            }
+    private func startGeneral() {
+        let url = pageURL.trimmingCharacters(in: .whitespaces)
+        let parsed = URL(string: url)
+        let title = parsed.map { ($0.host() ?? url) + ($0.path() == "/" ? "" : $0.path()) } ?? url
+        let entry = store.start(
+            mode: .general, title: title,
+            input: CollectInput(
+                url: url, selector: selector.trimmingCharacters(in: .whitespaces), media: media, render: render
+            ),
+            folderName: parsed?.host() ?? "toaster"
+        )
+        path.append(entry.id)
     }
 }
 
-/// 카카오 이모티콘 탭: 링크 끝주소만 넣으면 이모티콘을 모아 <끝주소>.zip 으로 준다
-private struct KakaoEmoticonView: View {
-    @Binding var apiURL: String
-    @State private var input = ""
-    @State private var slug: String?
-    @State private var inputError: String?
-    @State private var model = JobModel()
+// MARK: - 카카오 이모티콘 입력
 
-    private var api: ToasterAPI? { makeAPI(apiURL) }
+private struct KakaoForm: View {
+    @Binding var input: String
+    let onSubmit: (String) -> Void
+    @State private var error: String?
+    @FocusState private var focused: Bool
+
     private var preview: String? { Kakao.parseSlug(input) }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack(spacing: 0) {
-                        Text("e.kakao.com/t/")
-                            .font(.body.monospaced())
-                            .foregroundStyle(.secondary)
-                        TextField("kakao-friends-classic", text: $input)
-                            .font(.body.monospaced())
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "이모티콘 링크")
+                HStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        TextField("공유 링크 또는 끝주소", text: $input)
+                            .font(.system(size: 15))
+                            .urlInput()
                             .submitLabel(.go)
+                            .focused($focused)
                             .onSubmit(submit)
-                            .onChange(of: input) { inputError = nil }
-                    }
-                } header: {
-                    Text("이모티콘 링크 또는 끝주소")
-                } footer: {
-                    if let preview {
-                        Text("받을 페이지: \(Kakao.emoticonURL(slug: preview))")
-                    } else {
-                        Text("공유 링크를 통째로 붙여 넣어도 돼요.")
-                    }
-                }
-
-                Section {
-                    Button(action: submit) {
-                        HStack {
-                            Text(model.isRunning ? "이모티콘 굽는 중…" : "이모티콘 zip 받기").bold()
-                            Spacer()
-                            if model.isSubmitting || model.isRunning { ProgressView() }
+                            .onChange(of: input) { error = nil }
+                        if preview != nil {
+                            Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Color.tOk)
                         }
                     }
-                    .disabled(api == nil || input.trimmingCharacters(in: .whitespaces).isEmpty
-                              || model.isSubmitting || model.isRunning)
-                } footer: {
-                    Text("이모티콘은 저작권이 있어요. 받은 파일은 개인 소장용으로만 써 주세요.")
+                    .fieldChrome(focused: focused)
+                    PasteLinkButton { text in
+                        input = text
+                        error = Kakao.parseSlug(text) == nil ? "복사한 내용이 이모티콘 링크가 아닙니다." : nil
+                    }
                 }
-
-                if let inputError {
-                    Section { Label(inputError, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
-                }
-                if let message = model.errorMessage {
-                    Section { Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
-                }
-
-                if let job = model.job, let api {
-                    ResultSection(job: job, model: model, api: api, zipLabel: slug.map { "\($0).zip 공유 / 파일에 저장" })
-                }
+                Hint(text: preview.map { "\(Kakao.emoticonURL(slug: $0)) 에서 받습니다." }
+                     ?? "카카오톡 이모티콘샵에서 공유 → 링크 복사 후 붙여넣기를 누르세요.")
             }
-            .navigationTitle("🍞 Toaster")
-            .modifier(SettingsToolbar(apiURL: $apiURL))
+
+            if let error { ErrorBox(message: error) }
+
+            Button("이모티콘 받기", action: submit)
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 
     private func submit() {
-        guard let api, !model.isSubmitting, !model.isRunning else { return }
-        guard let parsed = Kakao.parseSlug(input) else {
-            inputError = "이모티콘 링크나 끝주소를 확인해 주세요. 예) kakao-friends-classic"
+        guard let slug = Kakao.parseSlug(input) else {
+            error = "이모티콘 링크 형식이 아닙니다. 카카오톡 이모티콘샵에서 공유한 링크를 넣어 주세요."
             return
         }
-        inputError = nil
-        slug = parsed
-        Task {
-            await model.start(
-                api: api,
-                url: Kakao.emoticonURL(slug: parsed),
-                selector: Kakao.emoticonSelector,
-                render: true,
-                zipName: "\(parsed).zip"
-            )
-        }
+        focused = false
+        onSubmit(slug)
     }
 }
 
-/// 일반 페이지 탭: 아무 페이지 주소와 CSS 선택자로 이미지를 모은다
-private struct GeneralPageView: View {
-    @Binding var apiURL: String
-    @State private var pageURL = ""
-    @State private var selector = "img"
-    @State private var render = false
-    @State private var model = JobModel()
+// MARK: - 일반 페이지 입력
 
-    private var api: ToasterAPI? { makeAPI(apiURL) }
+private struct GeneralForm: View {
+    @Binding var pageURL: String
+    @Binding var selector: String
+    @Binding var render: Bool
+    @Binding var media: Media
+    let onSubmit: () -> Void
 
-    private var canSubmit: Bool {
-        api != nil && URL(string: pageURL)?.scheme?.hasPrefix("http") == true
-            && !selector.trimmingCharacters(in: .whitespaces).isEmpty
-            && !model.isSubmitting && !model.isRunning
+    private enum Field { case url, selector }
+    @FocusState private var focus: Field?
+
+    private var valid: Bool {
+        URL(string: pageURL)?.scheme?.hasPrefix("http") == true && !selector.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "페이지 주소")
+                HStack(spacing: 8) {
                     TextField("https://example.com/page", text: $pageURL)
-                        .keyboardType(.URL)
-                        .textContentType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("img.emoticon, div.thumb img", text: $selector)
-                        .font(.body.monospaced())
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Toggle("JS로 그려지는 페이지", isOn: $render)
-                } header: {
-                    Text("페이지 주소 · HTML 태그")
-                } footer: {
-                    Text("감싸는 요소를 지정하면 안쪽 이미지까지 찾아요.")
-                }
-
-                Section {
-                    Button {
-                        guard let api else { return }
-                        Task {
-                            await model.start(
-                                api: api,
-                                url: pageURL.trimmingCharacters(in: .whitespaces),
-                                selector: selector.trimmingCharacters(in: .whitespaces),
-                                render: render
-                            )
-                        }
-                    } label: {
-                        HStack {
-                            Text(model.isRunning ? "굽는 중…" : "이미지 가져오기").bold()
-                            Spacer()
-                            if model.isSubmitting || model.isRunning { ProgressView() }
-                        }
-                    }
-                    .disabled(!canSubmit)
-                }
-
-                if let message = model.errorMessage {
-                    Section { Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
-                }
-
-                if let job = model.job, let api {
-                    ResultSection(job: job, model: model, api: api)
+                        .font(.system(size: 15))
+                        .urlInput()
+                        .focused($focus, equals: .url)
+                        .fieldChrome(focused: focus == .url)
+                    PasteLinkButton { pageURL = $0 }
                 }
             }
-            .navigationTitle("🍞 Toaster")
-            .modifier(SettingsToolbar(apiURL: $apiURL))
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "찾을 요소")
+                TextField("img.emoticon, div.thumb img", text: $selector)
+                    .font(.system(size: 14, design: .monospaced))
+                    .plainInput()
+                    .focused($focus, equals: .selector)
+                    .fieldChrome(focused: focus == .selector)
+                Hint(text: "CSS 선택자입니다. 감싸는 요소를 고르면 안쪽 이미지·영상까지 찾습니다.")
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "받을 종류")
+                PillSegmented(selection: $media, options: [(.image, "이미지"), (.video, "영상"), (.all, "둘 다")])
+                if media != .image {
+                    Hint(text: "영상은 직접 링크된 mp4·mov 등만 받습니다. 스트리밍(m3u8)이나 DRM 영상은 받을 수 없습니다.")
+                }
+            }
+            Toggle(isOn: $render) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("자바스크립트로 그리는 페이지").font(.system(size: 14, weight: .medium)).foregroundStyle(Color.tInk)
+                    Hint(text: "기기 안에서 페이지를 열어 끝까지 스크롤한 뒤 찾습니다. 느리지만 정확합니다.")
+                }
+            }
+            .tint(.tOk)
+
+            Button("가져오기") {
+                focus = nil
+                onSubmit()
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(!valid)
         }
     }
 }
 
-private struct ResultSection: View {
-    let job: Job
-    let model: JobModel
-    let api: ToasterAPI
-    var zipLabel: String? = nil
+// MARK: - 최근 작업 한 줄
 
-    private let columns = [GridItem(.adaptive(minimum: 96), spacing: 8)]
+private struct HistoryRow: View {
+    let entry: JobEntry
 
     var body: some View {
-        Section {
-            HStack {
-                Text(job.status.label).bold()
-                Spacer()
-                if job.total > 0 {
-                    Text("\(job.images.count)장 / 후보 \(job.total)개").foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Group {
+                if entry.isRunning {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Circle().fill(entry.isFailed ? Color.tDanger : Color.tOk).frame(width: 8, height: 8)
                 }
             }
-            if !job.status.isFinished, job.total > 0 {
-                ProgressView(value: Double(job.processed), total: Double(job.total))
+            .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.displayTitle).font(.system(size: 15, weight: .medium)).foregroundStyle(Color.tInk).lineLimit(1)
+                Text(entry.summary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(entry.isFailed ? Color.tDanger : Color.tMuted)
+                    .lineLimit(1)
             }
-            if let error = job.error {
-                Text(error).foregroundStyle(.red)
+            Spacer(minLength: 8)
+            TimelineView(.periodic(from: .now, by: 30)) { _ in
+                Text(timeAgo(entry.startedAt))
             }
-            if job.status == .done {
-                Button {
-                    Task { await model.saveAllToPhotos(api: api) }
-                } label: {
-                    HStack {
-                        Label("사진 앱에 모두 저장", systemImage: "photo.on.rectangle.angled")
-                        Spacer()
-                        if model.isSaving { ProgressView() }
-                    }
-                }
-                .disabled(model.isSaving)
-                if let zip = model.zipFileURL {
-                    ShareLink(item: zip) { Label(zipLabel ?? "zip 공유 / 파일에 저장", systemImage: "square.and.arrow.up") }
-                }
-                if let message = model.saveMessage {
-                    Text(message).font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-        } header: {
-            Text("결과")
+            .font(.system(size: 12))
+            .foregroundStyle(Color.tMuted)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.tLineStrong)
         }
-
-        if !job.images.isEmpty {
-            Section {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(job.images) { image in
-                        AsyncImage(url: image.url) { phase in
-                            switch phase {
-                            case .success(let img): img.resizable().scaledToFit()
-                            case .failure: Image(systemName: "photo").foregroundStyle(.secondary)
-                            default: ProgressView()
-                            }
-                        }
-                        .frame(height: 96)
-                        .frame(maxWidth: .infinity)
-                        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
-                        .contextMenu {
-                            ShareLink(item: image.url)
-                            Text(image.filename)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-
-        if !job.errors.isEmpty {
-            Section("받지 못한 이미지 \(job.errors.count)개") {
-                ForEach(job.errors, id: \.self) { Text($0).font(.caption.monospaced()).foregroundStyle(.secondary) }
-            }
-        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .contentShape(.rect)
     }
 }
 
-private struct SettingsView: View {
-    @Binding var apiURL: String
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("http://127.0.0.1:8000", text: $apiURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("기본값으로") { apiURL = ToasterAPI.defaultBaseURL }
-                } header: {
-                    Text("toaster-server 주소")
-                } footer: {
-                    Text("시뮬레이터는 127.0.0.1, 실기기는 같은 Wi-Fi의 Mac IP(예: http://192.168.0.10:8000)나 배포 주소를 넣어요.")
-                }
-            }
-            .navigationTitle("서버 설정")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button("완료") { dismiss() } }
-        }
-    }
+private func timeAgo(_ date: Date) -> String {
+    let s = Int(-date.timeIntervalSinceNow)
+    if s < 60 { return "방금" }
+    if s < 3600 { return "\(s / 60)분 전" }
+    return "\(s / 3600)시간 전"
 }
 
 #Preview {

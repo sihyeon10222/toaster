@@ -1,7 +1,7 @@
 import Foundation
 
 // 카카오 이모티콘샵 프리셋 (web/src/lib/kakao.ts 와 맞춤).
-// 페이지가 JS로 그려지므로 서버의 render 옵션(Chromium)이 필요하다.
+// 이모티콘 목록은 페이지 HTML 에 그대로 들어 있어 렌더링 없이 받을 수 있다.
 enum Kakao {
     static let emoticonBase = "https://e.kakao.com/t/"
     /// 이모티콘 상세 페이지의 이모티콘 목록. 카카오가 페이지를 개편하면 바꿔야 한다.

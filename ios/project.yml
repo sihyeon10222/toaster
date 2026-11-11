@@ -4,17 +4,30 @@ options:
   bundleIdPrefix: app.yechan
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
   createIntermediateGroups: true
+  # 공유 시트·메뉴 같은 시스템 문구를 한국어로
+  developmentLanguage: ko
+packages:
+  # HTML 파싱·CSS 선택자 (서버 없이 아이폰에서 페이지를 분석)
+  SwiftSoup:
+    url: https://github.com/scinfu/SwiftSoup
+    from: 2.7.0
 settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
+  # 아이폰·아이패드·맥 앱을 한 타깃으로 만든다 (Xcode 에서 실행 대상만 고르면 됨)
   Toaster:
     type: application
-    platform: iOS
-    sources: [Toaster]
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Toaster
+        excludes: ["*.entitlements"]
+    dependencies:
+      - package: SwiftSoup
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.yechan.toaster
@@ -24,13 +37,16 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
-        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: 받은 이미지를 사진 앱에 저장하려면 권한이 필요해요.
-        # 기본 서버 주소. 실기기에서는 Mac의 IP나 배포 주소로 바꾸거나 앱 설정에서 변경.
-        TOASTER_API_URL: http://127.0.0.1:8000
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: 받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        # 맥: 샌드박스 안에서 인터넷 접속과 사용자가 고른 폴더·다운로드 폴더 쓰기만 허용
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Toaster/Toaster-macOS.entitlements
+        ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
+        # 개발자 팀 없이도 이 맥에서 바로 실행되게 로컬 서명 ("Sign to Run Locally"). 팀이 있으면 Xcode 에서 골라도 된다.
+        CODE_SIGN_IDENTITY[sdk=macosx*]: "-"
+        CODE_SIGN_STYLE[sdk=macosx*]: Manual
     info:
       path: Toaster/Info.plist
       properties:
-        ToasterAPIURL: $(TOASTER_API_URL)
-        NSAppTransportSecurity:
-          # 개발 중 로컬 서버(http) 접속 허용. 배포 서버는 https 사용.
-          NSAllowsLocalNetworking: true
+        CFBundleDevelopmentRegion: ko
+        CFBundleLocalizations: [ko]

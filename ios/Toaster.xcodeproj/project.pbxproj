@@ -7,22 +7,48 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		076697ABC09756D905EE1A48 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2502130449FEBBCBD54905F7 /* SwiftSoup */; };
+		270EDF11E7B3F3DCBFBB26E5 /* Sticker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */; };
+		2CD70288C384DE12DD2284CC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4DABD7322224B36EB1794A4 /* Theme.swift */; };
 		575A972B9227031E2538CCBD /* JobModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4E2E00AA3468779893311F /* JobModel.swift */; };
-		949FB0822D1D6B623424C37C /* ToasterAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F1C071B6847C7BAE41D83EC /* ToasterAPI.swift */; };
+		8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA609ED4C52C0A98C704F350 /* SaveFolder.swift */; };
 		9B75B967011C713E630C82EC /* Kakao.swift in Sources */ = {isa = PBXBuildFile; fileRef = D984814AD1941C2920364CB1 /* Kakao.swift */; };
+		A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4513051A5753B70A03C6AF /* JobResultView.swift */; };
+		AB27EBD7D43F5AC1FB494260 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 347F30CB194508E063D6830C /* Platform.swift */; };
+		ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D9459702A434793819F0023 /* Collector.swift */; };
 		B5636487E8D7FD7B0BF3D188 /* ToasterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8221D664D5D8214EDFCC4156 /* ToasterApp.swift */; };
+		BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 124D167D6FB9684C816516B6 /* JobStore.swift */; };
+		D5755CBD9CC6AE6463841210 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19846FA236DC689A2F97C12A /* SettingsView.swift */; };
 		DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC349D0D6C30A9FE713EA42 /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		09B16E5AF26E59672631FCB2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		124D167D6FB9684C816516B6 /* JobStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobStore.swift; sourceTree = "<group>"; };
+		19846FA236DC689A2F97C12A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C4E2E00AA3468779893311F /* JobModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobModel.swift; sourceTree = "<group>"; };
+		347F30CB194508E063D6830C /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sticker.swift; sourceTree = "<group>"; };
 		72710542F750FE44A2A04466 /* Toaster.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Toaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8221D664D5D8214EDFCC4156 /* ToasterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToasterApp.swift; sourceTree = "<group>"; };
-		8F1C071B6847C7BAE41D83EC /* ToasterAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToasterAPI.swift; sourceTree = "<group>"; };
+		9D9459702A434793819F0023 /* Collector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collector.swift; sourceTree = "<group>"; };
+		AA609ED4C52C0A98C704F350 /* SaveFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveFolder.swift; sourceTree = "<group>"; };
+		B4DABD7322224B36EB1794A4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D984814AD1941C2920364CB1 /* Kakao.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kakao.swift; sourceTree = "<group>"; };
 		DCC349D0D6C30A9FE713EA42 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FF4513051A5753B70A03C6AF /* JobResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobResultView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		99B257C0CF3F19DBDE28A36F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				076697ABC09756D905EE1A48 /* SwiftSoup in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		541D83F897F683271028A77B = {
@@ -44,11 +70,18 @@
 		E64F66EDE262408AFFC569A7 /* Toaster */ = {
 			isa = PBXGroup;
 			children = (
+				9D9459702A434793819F0023 /* Collector.swift */,
 				DCC349D0D6C30A9FE713EA42 /* ContentView.swift */,
 				09B16E5AF26E59672631FCB2 /* Info.plist */,
 				2C4E2E00AA3468779893311F /* JobModel.swift */,
+				FF4513051A5753B70A03C6AF /* JobResultView.swift */,
+				124D167D6FB9684C816516B6 /* JobStore.swift */,
 				D984814AD1941C2920364CB1 /* Kakao.swift */,
-				8F1C071B6847C7BAE41D83EC /* ToasterAPI.swift */,
+				347F30CB194508E063D6830C /* Platform.swift */,
+				AA609ED4C52C0A98C704F350 /* SaveFolder.swift */,
+				19846FA236DC689A2F97C12A /* SettingsView.swift */,
+				35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */,
+				B4DABD7322224B36EB1794A4 /* Theme.swift */,
 				8221D664D5D8214EDFCC4156 /* ToasterApp.swift */,
 			);
 			path = Toaster;
@@ -62,6 +95,7 @@
 			buildConfigurationList = 3AEF43599DA6E725B85A849E /* Build configuration list for PBXNativeTarget "Toaster" */;
 			buildPhases = (
 				B4EC5032386F581C9AE5AEEB /* Sources */,
+				99B257C0CF3F19DBDE28A36F /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -69,6 +103,7 @@
 			);
 			name = Toaster;
 			packageProductDependencies = (
+				2502130449FEBBCBD54905F7 /* SwiftSoup */,
 			);
 			productName = Toaster;
 			productReference = 72710542F750FE44A2A04466 /* Toaster.app */;
@@ -86,14 +121,17 @@
 				};
 			};
 			buildConfigurationList = D05EC7776E79FE41BE33B0D2 /* Build configuration list for PBXProject "Toaster" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
-				en,
+				ko,
 			);
 			mainGroup = 541D83F897F683271028A77B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				14030DDC2B3B091A2F5A4EA9 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5727616D6D6BF8B0607727ED /* Products */;
 			projectDirPath = "";
@@ -109,10 +147,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */,
 				DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */,
 				575A972B9227031E2538CCBD /* JobModel.swift in Sources */,
+				A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */,
+				BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */,
 				9B75B967011C713E630C82EC /* Kakao.swift in Sources */,
-				949FB0822D1D6B623424C37C /* ToasterAPI.swift in Sources */,
+				AB27EBD7D43F5AC1FB494260 /* Platform.swift in Sources */,
+				8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */,
+				D5755CBD9CC6AE6463841210 /* SettingsView.swift in Sources */,
+				270EDF11E7B3F3DCBFBB26E5 /* Sticker.swift in Sources */,
+				2CD70288C384DE12DD2284CC /* Theme.swift in Sources */,
 				B5636487E8D7FD7B0BF3D188 /* ToasterApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -124,11 +169,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Toaster/Toaster-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_STYLE[sdk=macosx*]" = Manual;
+				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Toaster/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Toaster;
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지를 사진 앱에 저장하려면 권한이 필요해요.";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -138,9 +188,12 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.yechan.toaster;
 				PRODUCT_NAME = Toaster;
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TOASTER_API_URL = "http://127.0.0.1:8000";
 			};
 			name = Release;
 		};
@@ -197,12 +250,13 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -213,11 +267,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Toaster/Toaster-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_STYLE[sdk=macosx*]" = Manual;
+				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Toaster/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Toaster;
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지를 사진 앱에 저장하려면 권한이 필요해요.";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -227,9 +286,12 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.yechan.toaster;
 				PRODUCT_NAME = Toaster;
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TOASTER_API_URL = "http://127.0.0.1:8000";
 			};
 			name = Debug;
 		};
@@ -280,11 +342,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
+				SDKROOT = auto;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
@@ -313,6 +376,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		14030DDC2B3B091A2F5A4EA9 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2502130449FEBBCBD54905F7 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 14030DDC2B3B091A2F5A4EA9 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 55C920805657F2C7D8923E31 /* Project object */;
 }

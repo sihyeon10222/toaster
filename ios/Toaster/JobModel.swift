@@ -1,101 +1,93 @@
 import Foundation
 import Observation
+#if os(iOS)
 import Photos
+#endif
 
+/// 작업 하나의 상태. 실제 받기는 Collector 가 기기 안에서 한다.
 @MainActor
 @Observable
 final class JobModel {
     var job: Job?
-    var errorMessage: String?
-    var isSubmitting = false
     var isSaving = false
     var saveMessage: String?
-    var zipFileURL: URL?
+    /// 텔레그램 스티커 변환 진행 (끝난 수, 전체)
+    var stickerProgress: (done: Int, total: Int)?
+    var stickerErrors: [String] = []
 
-    private var pollTask: Task<Void, Never>?
-    /// 공유할 zip 파일 이름. nil 이면 toaster-<id>.zip
-    private var zipName: String?
-
-    var isRunning: Bool { job.map { !$0.status.isFinished } ?? false }
-
-    func start(api: ToasterAPI, url: String, selector: String, render: Bool, zipName: String? = nil) async {
-        pollTask?.cancel()
-        self.zipName = zipName
+    func start(_ input: CollectInput) async {
         job = nil
-        errorMessage = nil
         saveMessage = nil
-        zipFileURL = nil
-        isSubmitting = true
-        defer { isSubmitting = false }
+        await Collector.run(input) { [weak self] next in
+            self?.job = next
+        }
+    }
+
+    /// 받은 파일을 그대로 `<저장 폴더>/<name>/` 에 넣는다.
+    func saveToFolder(_ folder: SaveFolder, name: String) {
+        guard let files = job?.images, !files.isEmpty else { return }
         do {
-            let created = try await api.createJob(url: url, selector: selector, render: render)
-            job = created
-            poll(api: api, id: created.id)
+            let target = try folder.write(files.map { ($0.filename, $0.fileURL) }, into: name)
+            saveMessage = "\(folder.displayName)/\(target.lastPathComponent) 에 \(files.count)개 저장했습니다."
         } catch {
-            errorMessage = error.localizedDescription
+            saveMessage = error.localizedDescription
         }
     }
 
-    private func poll(api: ToasterAPI, id: String) {
-        pollTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(800))
-                do {
-                    let next = try await api.job(id: id)
-                    guard let self, !Task.isCancelled else { return }
-                    self.job = next
-                    if next.status.isFinished {
-                        if next.status == .done { await self.prepareZip(api: api, job: next) }
-                        return
-                    }
-                } catch {
-                    self?.errorMessage = error.localizedDescription
-                    return
-                }
-            }
+    /// 텔레그램 스티커 규격으로 바꿔 `<저장 폴더>/<name>_telegram/1.webm …` 에 넣는다.
+    func saveStickers(_ folder: SaveFolder, name: String) async {
+        guard let job, !job.images.isEmpty, stickerProgress == nil else { return }
+        guard let server = Sticker.serverURL else {
+            saveMessage = "설정에서 텔레그램 변환 서버 주소를 먼저 넣어 주세요."
+            return
         }
-    }
+        saveMessage = nil
+        stickerErrors = []
+        stickerProgress = (0, job.images.count)
+        defer { stickerProgress = nil }
 
-    /// 공유 시트에 바로 넘길 수 있게 zip 을 임시 폴더에 받아 둔다.
-    private func prepareZip(api: ToasterAPI, job: Job) async {
-        guard let zipUrl = job.zipUrl else { return }
+        let total = job.images.count
+        let result = await Sticker.convert(job.images, referer: job.url, server: server) { [weak self] done in
+            self?.stickerProgress = (done, total)
+        }
+        stickerErrors = result.errors
+        guard !result.files.isEmpty else {
+            saveMessage = "스티커로 바꾼 파일이 없습니다."
+            return
+        }
         do {
-            let data = try await api.data(from: zipUrl)
-            // 작업마다 폴더를 나눠서 같은 이름(<slug>.zip)이어도 겹치지 않게 한다
-            let dir = FileManager.default.temporaryDirectory.appending(path: "toaster-\(job.id)")
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let file = dir.appending(path: zipName ?? "toaster-\(job.id.prefix(8)).zip")
-            try data.write(to: file, options: .atomic)
-            zipFileURL = file
+            let target = try folder.write(result.files, into: "\(name)_telegram")
+            saveMessage = "\(folder.displayName)/\(target.lastPathComponent) 에 스티커 \(result.files.count)개 저장했습니다."
         } catch {
-            // zip 은 부가 기능이라 실패해도 결과 화면은 유지
+            saveMessage = error.localizedDescription
         }
     }
 
-    /// 받은 이미지를 전부 사진 앱에 저장.
-    func saveAllToPhotos(api: ToasterAPI) async {
-        guard let images = job?.images, !images.isEmpty else { return }
+    #if os(iOS)
+    /// 받은 이미지·영상을 전부 사진 앱에 저장.
+    func saveAllToPhotos() async {
+        guard let files = job?.images, !files.isEmpty else { return }
         isSaving = true
         defer { isSaving = false }
 
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
-            saveMessage = "사진 저장 권한이 없어요. 설정 > Toaster 에서 허용해 주세요."
+            saveMessage = "사진 저장 권한이 없습니다. 설정 > Toaster 에서 허용해 주세요."
             return
         }
 
         var saved = 0
-        for image in images {
-            guard let data = try? await api.data(from: image.url) else { continue }
+        for file in files {
             do {
                 try await PHPhotoLibrary.shared().performChanges {
-                    PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
+                    PHAssetCreationRequest.forAsset().addResource(with: file.isVideo ? .video : .photo, fileURL: file.fileURL, options: nil)
                 }
                 saved += 1
             } catch {
-                continue  // SVG 처럼 사진 앱이 못 받는 형식은 건너뜀
+                continue  // SVG·webm 처럼 사진 앱이 못 받는 형식은 건너뜀
             }
         }
-        saveMessage = "사진 앱에 \(saved)/\(images.count)장 저장했어요."
+        saveMessage = "사진 앱에 \(saved)/\(files.count)개 저장했습니다."
     }
+    #endif
 }
