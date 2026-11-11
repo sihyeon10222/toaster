@@ -3,8 +3,11 @@
 export const API_URL = (process.env.NEXT_PUBLIC_TOASTER_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export type JobStatus = "pending" | "fetching" | "downloading" | "done" | "failed";
+/** 받을 종류. video 는 직접 링크된 mp4/webm/mov 등만 (스트리밍·DRM 미지원) */
+export type Media = "image" | "video" | "all";
 
 export interface ToasterImage {
+  kind: "image" | "video";
   filename: string;
   url: string;
   source_url: string;
@@ -17,6 +20,7 @@ export interface Job {
   url: string;
   selector: string;
   render: boolean;
+  media: Media;
   status: JobStatus;
   total: number;
   processed: number;
@@ -54,7 +58,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function createJob(input: { url: string; selector: string; render: boolean }) {
+export interface CreateJobInput {
+  url: string;
+  selector: string;
+  render: boolean;
+  media?: Media;
+}
+
+export function createJob(input: CreateJobInput) {
   return request<Job>("/jobs", { method: "POST", body: JSON.stringify(input) });
 }
 

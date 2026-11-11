@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createJob, getJob, isFinished, type Job } from "@/lib/toaster";
+import { createJob, getJob, isFinished, type CreateJobInput, type Job } from "@/lib/toaster";
 
 const POLL_MS = 800;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -16,7 +16,7 @@ export function useToasterJob() {
 
   useEffect(() => () => void runRef.current++, []);
 
-  const start = useCallback(async (input: { url: string; selector: string; render: boolean }) => {
+  const start = useCallback(async (input: CreateJobInput) => {
     const run = ++runRef.current;
     const alive = () => runRef.current === run;
     setError(null);
