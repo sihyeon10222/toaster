@@ -34,7 +34,7 @@ final class JobModel {
         }
     }
 
-    /// 텔레그램 스티커 규격으로 바꿔 `<저장 폴더>/<name>_telegram/1.webm …` 에 넣는다.
+    /// 텔레그램 스티커 규격으로 바꿔 `<저장 폴더>/<name>/1.webm … thumbnail.png` 에 넣는다 (같은 이름이 있으면 `<name>_2`).
     func saveStickers(_ folder: SaveFolder, name: String) async {
         guard let job, !job.images.isEmpty, stickerProgress == nil else { return }
         saveMessage = nil
@@ -52,7 +52,7 @@ final class JobModel {
             return
         }
         do {
-            let target = try folder.write(result.files, into: "\(name)_telegram")
+            let target = try folder.write(result.files, into: name)
             let stickers = result.files.filter { !$0.name.hasPrefix("thumbnail.") }.count
             let what = result.files.count > stickers ? "스티커 \(stickers)개와 썸네일을" : "스티커 \(stickers)개를"
             saveMessage = "\(folder.displayName)/\(target.lastPathComponent) 에 \(what) 저장했습니다."

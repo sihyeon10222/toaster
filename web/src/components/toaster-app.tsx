@@ -241,7 +241,7 @@ export function ToasterApp() {
       setStickerErrors((m) => ({ ...m, [key]: result.errors }));
       if (result.files.length === 1) saveBlob(result.files[0].blob, result.files[0].filename);
       else if (result.files.length > 1) {
-        saveBlob(await zipStickers(result.files), entry.zipName.replace(/\.zip$/, "") + "_telegram.zip");
+        saveBlob(await zipStickers(result.files), entry.zipName);
       }
     } finally {
       setStickerProgress((m) => {

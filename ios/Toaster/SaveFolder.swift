@@ -45,7 +45,7 @@ final class SaveFolder {
         url = picked
     }
 
-    /// 고른 폴더 안에 `name` 폴더를 새로 만들고(이미 있으면 "name 2") 파일들을 넣는다. 만든 폴더를 돌려준다.
+    /// 고른 폴더 안에 `name` 폴더를 새로 만들고(이미 있으면 "name_2", "name_3" …) 파일들을 넣는다. 만든 폴더를 돌려준다.
     func write(_ files: [(name: String, source: URL)], into name: String) throws -> URL {
         guard let root = url else { throw CollectError(message: "저장할 폴더를 먼저 골라 주세요.") }
         let scoped = root.startAccessingSecurityScopedResource()
@@ -55,7 +55,7 @@ final class SaveFolder {
         var target = root.appending(path: name, directoryHint: .isDirectory)
         var n = 2
         while fm.fileExists(atPath: target.path(percentEncoded: false)) {
-            target = root.appending(path: "\(name) \(n)", directoryHint: .isDirectory)
+            target = root.appending(path: "\(name)_\(n)", directoryHint: .isDirectory)
             n += 1
         }
         do {

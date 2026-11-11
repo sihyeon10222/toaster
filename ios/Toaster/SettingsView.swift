@@ -79,7 +79,7 @@ struct SettingsView: View {
                     .foregroundStyle(Color.tInk)
             }
             .fieldChrome(focused: false)
-            Hint(text: "zip 으로 묶지 않고 이 폴더 안에 작업마다 폴더를 만들어 파일을 그대로 넣습니다. 예: 폴더/끝주소/001.png, 폴더/끝주소_telegram/1.webm")
+            Hint(text: "zip 으로 묶지 않고 이 폴더 안에 작업마다 폴더를 만들어 파일을 그대로 넣습니다. 예: 폴더/끝주소/001.png. 같은 이름이 있으면 끝주소_2, 끝주소_3 … 으로 만듭니다.")
         }
     }
 
