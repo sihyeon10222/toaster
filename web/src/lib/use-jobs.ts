@@ -50,8 +50,29 @@ export function useJobs() {
     ).finally(() => controllers.current.delete(key));
   }, []);
 
+  /** 기록 하나를 지운다. 받는 중이면 멈추고, 받아 둔 파일(blob)이 차지하던 메모리도 놓아 준다. */
+  const remove = useCallback((key: string) => {
+    controllers.current.get(key)?.abort();
+    controllers.current.delete(key);
+    setEntries((es) => {
+      es.find((e) => e.key === key)?.job?.images.forEach((f) => URL.revokeObjectURL(f.url));
+      return es.filter((e) => e.key !== key);
+    });
+    setSelectedKey((k) => (k === key ? null : k));
+  }, []);
+
+  const removeAll = useCallback(() => {
+    controllers.current.forEach((c) => c.abort());
+    controllers.current.clear();
+    setEntries((es) => {
+      es.forEach((e) => e.job?.images.forEach((f) => URL.revokeObjectURL(f.url)));
+      return [];
+    });
+    setSelectedKey(null);
+  }, []);
+
   const selected = entries.find((e) => e.key === selectedKey) ?? null;
-  return { entries, selected, select: setSelectedKey, start };
+  return { entries, selected, select: setSelectedKey, start, remove, removeAll };
 }
 
 export const isRunning = (e: Entry) => e.job === null || e.job.status === "fetching" || e.job.status === "downloading";
