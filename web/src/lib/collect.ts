@@ -1,6 +1,7 @@
 // 브라우저에서 돌아가는 수집 과정: 페이지 분석(/api/scan) → 파일 받기(/api/file) → 형식 판별·중복 제거 → zip.
 // 예전에는 파이썬 toaster-server 가 하던 일이다.
 import { zipSync } from "fflate";
+import { imageLook, smallerDuplicates, type ImageLook } from "@/lib/image-look";
 import { EXT_BY_TYPE, sniffType } from "@/lib/sniff";
 
 /** 받을 종류. video 는 직접 링크된 mp4/webm/mov 등만 (스트리밍·DRM 미지원) */
@@ -96,6 +97,7 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
   emit({ status: "downloading", total: urls.length });
   const width = Math.max(3, String(urls.length).length);
   const results: (CollectedFile | null)[] = new Array(urls.length).fill(null);
+  const looks: (ImageLook | null)[] = new Array(urls.length).fill(null);
   const seen = new Set<string>();
   const errors: string[] = [];
   let processed = 0;
@@ -107,7 +109,7 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
       const url = urls[index];
       try {
         const q = new URLSearchParams({ url, referer: pageUrl });
-        const res = await fetch(`/api/file?${q}`, { signal });
+        const res = await fetch(`/api/file?${q}`, { signal, cache: "no-store" });
         if (!res.ok) throw new Error(await errorText(res));
         const bytes = new Uint8Array(await res.arrayBuffer());
         const type = sniffType(bytes);
@@ -126,6 +128,7 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
             content_type: type,
             size: bytes.byteLength,
           };
+          if (type.startsWith("image/")) looks[index] = await imageLook(blob);
         }
       } catch (e) {
         if (!signal?.aborted) errors.push(`${url}: ${(e as Error).message}`);
@@ -136,6 +139,12 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker));
 
+  // 같은 그림이 크기만 다르게 여러 번 나왔으면 가장 큰 것만 남긴다
+  for (const drop of smallerDuplicates(looks)) {
+    const file = results[drop];
+    if (file) URL.revokeObjectURL(file.url);
+    results[drop] = null;
+  }
   const images = results.filter((f): f is CollectedFile => f !== null);
   emit({
     status: images.length > 0 ? "done" : "failed",
