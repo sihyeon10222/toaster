@@ -34,12 +34,12 @@ struct SettingsView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         FieldLabel(text: "텔레그램 변환 서버")
-                        TextField("https://toaster.vercel.app", text: $server)
+                        TextField(Sticker.defaultServer, text: $server)
                             .font(.system(size: 15))
                             .urlInput()
                             .focused($focused)
                             .fieldChrome(focused: focused)
-                        Hint(text: "Vercel 에 올린 웹 주소를 넣으세요. 움직이는 스티커(VP9 WEBM)는 애플 기기에서 만들 수 없어 이 서버가 변환합니다. 맥북이 꺼져 있어도 됩니다.")
+                        Hint(text: "비워 두면 Vercel 에 올린 \(Sticker.defaultServer) 를 씁니다. 움직이는 스티커(VP9 WEBM)는 애플 기기에서 만들 수 없어 이 서버가 변환합니다. 맥북이 꺼져 있어도 됩니다.")
                     }
 
                     if let error { ErrorBox(message: error) }

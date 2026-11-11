@@ -2,14 +2,16 @@ import Foundation
 
 /// 텔레그램 스티커 변환. VP9 WEBM 은 애플 기기에서 만들 수 없어서(인코더가 없음)
 /// 웹을 올려 둔 서버(Vercel)의 `/api/telegram` 에 맡긴다. 맥북이 꺼져 있어도 된다.
-/// 서버 주소는 설정에서 넣는다 (예: https://toaster.vercel.app).
+/// 기본은 Vercel 에 올린 웹 주소이고, 설정에서 바꿀 수 있다.
 enum Sticker {
     static let serverKey = "stickerServer"
+    static let defaultServer = "https://toaster-six.vercel.app"
     private static let concurrency = 3
 
     static var serverURL: URL? {
-        let raw = (UserDefaults.standard.string(forKey: serverKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty, let url = URL(string: raw.hasPrefix("http") ? raw : "https://\(raw)"), url.host() != nil else {
+        let saved = (UserDefaults.standard.string(forKey: serverKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = saved.isEmpty ? defaultServer : saved
+        guard let url = URL(string: raw.hasPrefix("http") ? raw : "https://\(raw)"), url.host() != nil else {
             return nil
         }
         return url
