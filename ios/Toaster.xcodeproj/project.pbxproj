@@ -7,17 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03E0A04CE1CB014CE2D4C638 /* SwipeToDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA79A132B032B92A088CB4E /* SwipeToDelete.swift */; };
 		076697ABC09756D905EE1A48 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2502130449FEBBCBD54905F7 /* SwiftSoup */; };
+		09450940723E8EBB82047562 /* Housekeeping.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */; };
 		270EDF11E7B3F3DCBFBB26E5 /* Sticker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */; };
 		2CD70288C384DE12DD2284CC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4DABD7322224B36EB1794A4 /* Theme.swift */; };
 		575A972B9227031E2538CCBD /* JobModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4E2E00AA3468779893311F /* JobModel.swift */; };
+		7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A437F66E13BDD515F596FD /* ElementPicker.swift */; };
 		8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA609ED4C52C0A98C704F350 /* SaveFolder.swift */; };
+		90EF4BDB33AC85D327C5DC8C /* SVGRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */; };
 		9B75B967011C713E630C82EC /* Kakao.swift in Sources */ = {isa = PBXBuildFile; fileRef = D984814AD1941C2920364CB1 /* Kakao.swift */; };
 		A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4513051A5753B70A03C6AF /* JobResultView.swift */; };
 		AB27EBD7D43F5AC1FB494260 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 347F30CB194508E063D6830C /* Platform.swift */; };
 		ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D9459702A434793819F0023 /* Collector.swift */; };
 		B5636487E8D7FD7B0BF3D188 /* ToasterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8221D664D5D8214EDFCC4156 /* ToasterApp.swift */; };
 		BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 124D167D6FB9684C816516B6 /* JobStore.swift */; };
+		BFB10AF38E7B1C6987A426EE /* ImageLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 385A511C0DAE2338271FAEB1 /* ImageLook.swift */; };
 		D5755CBD9CC6AE6463841210 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19846FA236DC689A2F97C12A /* SettingsView.swift */; };
 		DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC349D0D6C30A9FE713EA42 /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -29,13 +34,18 @@
 		2C4E2E00AA3468779893311F /* JobModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobModel.swift; sourceTree = "<group>"; };
 		347F30CB194508E063D6830C /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sticker.swift; sourceTree = "<group>"; };
+		385A511C0DAE2338271FAEB1 /* ImageLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLook.swift; sourceTree = "<group>"; };
 		72710542F750FE44A2A04466 /* Toaster.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Toaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8221D664D5D8214EDFCC4156 /* ToasterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToasterApp.swift; sourceTree = "<group>"; };
 		9D9459702A434793819F0023 /* Collector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collector.swift; sourceTree = "<group>"; };
+		A4A437F66E13BDD515F596FD /* ElementPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementPicker.swift; sourceTree = "<group>"; };
 		AA609ED4C52C0A98C704F350 /* SaveFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveFolder.swift; sourceTree = "<group>"; };
 		B4DABD7322224B36EB1794A4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		BCA79A132B032B92A088CB4E /* SwipeToDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeToDelete.swift; sourceTree = "<group>"; };
+		BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Housekeeping.swift; sourceTree = "<group>"; };
 		D984814AD1941C2920364CB1 /* Kakao.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kakao.swift; sourceTree = "<group>"; };
 		DCC349D0D6C30A9FE713EA42 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVGRenderer.swift; sourceTree = "<group>"; };
 		FF4513051A5753B70A03C6AF /* JobResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobResultView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,6 +82,9 @@
 			children = (
 				9D9459702A434793819F0023 /* Collector.swift */,
 				DCC349D0D6C30A9FE713EA42 /* ContentView.swift */,
+				A4A437F66E13BDD515F596FD /* ElementPicker.swift */,
+				BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */,
+				385A511C0DAE2338271FAEB1 /* ImageLook.swift */,
 				09B16E5AF26E59672631FCB2 /* Info.plist */,
 				2C4E2E00AA3468779893311F /* JobModel.swift */,
 				FF4513051A5753B70A03C6AF /* JobResultView.swift */,
@@ -81,6 +94,8 @@
 				AA609ED4C52C0A98C704F350 /* SaveFolder.swift */,
 				19846FA236DC689A2F97C12A /* SettingsView.swift */,
 				35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */,
+				F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */,
+				BCA79A132B032B92A088CB4E /* SwipeToDelete.swift */,
 				B4DABD7322224B36EB1794A4 /* Theme.swift */,
 				8221D664D5D8214EDFCC4156 /* ToasterApp.swift */,
 			);
@@ -149,14 +164,19 @@
 			files = (
 				ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */,
 				DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */,
+				7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */,
+				09450940723E8EBB82047562 /* Housekeeping.swift in Sources */,
+				BFB10AF38E7B1C6987A426EE /* ImageLook.swift in Sources */,
 				575A972B9227031E2538CCBD /* JobModel.swift in Sources */,
 				A18453769E308805FBD9EA96 /* JobResultView.swift in Sources */,
 				BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */,
 				9B75B967011C713E630C82EC /* Kakao.swift in Sources */,
 				AB27EBD7D43F5AC1FB494260 /* Platform.swift in Sources */,
+				90EF4BDB33AC85D327C5DC8C /* SVGRenderer.swift in Sources */,
 				8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */,
 				D5755CBD9CC6AE6463841210 /* SettingsView.swift in Sources */,
 				270EDF11E7B3F3DCBFBB26E5 /* Sticker.swift in Sources */,
+				03E0A04CE1CB014CE2D4C638 /* SwipeToDelete.swift in Sources */,
 				2CD70288C384DE12DD2284CC /* Theme.swift in Sources */,
 				B5636487E8D7FD7B0BF3D188 /* ToasterApp.swift in Sources */,
 			);

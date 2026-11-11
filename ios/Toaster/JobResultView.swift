@@ -305,6 +305,10 @@ private struct Thumbnail: View {
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.black, .white.opacity(0.9))
             }
+        } else if file.isSVG {
+            Checkerboard()
+                .overlay { LocalImage(url: file.fileURL, isSVG: true, side: 120, inset: inset) }
+                .clipped()
         } else {
             Checkerboard()
                 .overlay {
@@ -333,6 +337,9 @@ private struct FilePreview: View {
                     VideoPlayer(player: player)
                         .onAppear { player = AVPlayer(url: file.fileURL) }
                         .onDisappear { player?.pause() }
+                } else if file.isSVG {
+                    Checkerboard(cell: 12)
+                        .overlay { LocalImage(url: file.fileURL, isSVG: true, side: 360).padding(24) }
                 } else {
                     Checkerboard(cell: 12)
                         .overlay {

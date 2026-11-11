@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import ImageIO
 import SwiftSoup
 import WebKit
 
@@ -44,6 +45,7 @@ struct CollectedFile: Identifiable, Hashable, Sendable {
 
     var id: String { filename }
     var isVideo: Bool { contentType.hasPrefix("video/") }
+    var isSVG: Bool { contentType == "image/svg+xml" }
 }
 
 struct Job: Sendable {
@@ -79,10 +81,7 @@ enum Collector {
         let pageURL: URL
         let urls: [URL]
         do {
-            guard let url = URL(string: input.url), ["http", "https"].contains(url.scheme?.lowercased()) else {
-                throw CollectError(message: "http 또는 https 주소를 넣어 주세요.")
-            }
-            let (html, finalURL) = input.render ? try await PageRenderer.render(url) : try await fetchHTML(url)
+            let (html, finalURL) = try await loadPage(input.url, render: input.render)
             let found = try extract(html: html, pageURL: finalURL, selector: input.selector)
             pageURL = finalURL
             urls = found.urls
@@ -110,6 +109,7 @@ enum Collector {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let width = max(3, String(urls.count).count)
         var results = [CollectedFile?](repeating: nil, count: urls.count)
+        var looks = [ImageLook?](repeating: nil, count: urls.count)
         var seen = Set<String>()
 
         await withTaskGroup(of: (Int, Result<(Data, String), Error>).self) { group in
@@ -136,6 +136,7 @@ enum Collector {
                             results[index] = CollectedFile(
                                 filename: name, fileURL: file, sourceURL: urls[index], contentType: type, size: data.count
                             )
+                            if type.hasPrefix("image/") { looks[index] = ImageLook(data) }
                         } catch {
                             job.errors.append("\(urls[index].absoluteString): 저장 실패")
                         }
@@ -150,6 +151,11 @@ enum Collector {
             }
         }
 
+        // 같은 그림이 크기만 다르게 여러 번 나왔으면 가장 큰 것만 남긴다
+        for drop in ImageLook.smallerDuplicates(looks) {
+            if let file = results[drop] { try? FileManager.default.removeItem(at: file.fileURL) }
+            results[drop] = nil
+        }
         job.images = results.compactMap { $0 }
         if job.images.isEmpty {
             job.status = .failed
@@ -168,6 +174,28 @@ enum Collector {
         req.setValue("ko,en;q=0.8", forHTTPHeaderField: "Accept-Language")
         if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
         return req
+    }
+
+    /// 페이지 HTML 과 (넘겨 주기 뒤) 실제 주소. render 면 WKWebView 로 열어 끝까지 스크롤한 뒤 꺼낸다.
+    static func loadPage(_ address: String, render: Bool) async throws -> (String, URL) {
+        guard let url = URL(string: address.trimmingCharacters(in: .whitespaces)),
+              ["http", "https"].contains(url.scheme?.lowercased())
+        else { throw CollectError(message: "http 또는 https 주소를 넣어 주세요.") }
+        return render ? try await PageRenderer.render(url) : try await fetchHTML(url)
+    }
+
+    /// 요소 고르기 화면의 작은 미리보기. 원본을 받아 긴 변 maxPixel 로 줄인다.
+    static func thumbnail(_ url: URL, referer: URL, maxPixel: Int = 160) async -> CGImage? {
+        guard let (data, _) = try? await load(request(url, referer: referer)) else { return nil }
+        // SVG 는 ImageIO 가 못 읽어서 웹뷰에 그려 뜬다
+        if sniffType(data) == "image/svg+xml" { return await SVGRenderer.shared.render(data, pixels: maxPixel) }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     private static func fetchHTML(_ url: URL) async throws -> (String, URL) {
@@ -198,16 +226,34 @@ enum Collector {
 
     // MARK: 선택자 (예전 서버 scraper.extract_media_urls 와 같은 규칙)
 
-    private static let srcAttrs = ["src", "data-src", "data-original", "data-lazy-src", "data-url", "data-video-src", "href", "poster"]
+    /// 한 요소의 "본 그림" 주소가 들어 있을 수 있는 속성. 같은 그림의 크기별 주소라서 이 중 가장 큰 것 하나만 받는다.
+    /// srcset 이 있으면 그중 가장 큰 후보, 없으면 이 순서로 처음 나오는 것 (lazy-load 원본이 src 보다 크다)
+    private static let mainAttrs = ["data-original", "data-lazy-src", "data-src", "data-url", "src"]
     private static let srcsetAttrs = ["srcset", "data-srcset"]
+    /// 본 그림과 다른 파일을 가리키는 속성 (링크한 원본, 영상, 영상 포스터)
+    private static let extraAttrs = ["href", "data-video-src", "poster"]
     private static let innerMedia = "img, picture source, video, video source"
 
     static func extract(html: String, pageURL: URL, selector: String) throws -> (urls: [URL], title: String) {
         let doc = try SwiftSoup.parse(html, pageURL.absoluteString)
-        var base = pageURL
+        let urls = try mediaURLs(in: doc, base: baseURL(doc, pageURL), selector: selector)
+
+        // "카카오프렌즈 클래식 | 카카오 이모티콘샵" → "카카오프렌즈 클래식"
+        let rawTitle = (try? doc.select("meta[property=og:title]").first()?.attr("content")).flatMap { $0.isEmpty ? nil : $0 }
+            ?? (try? doc.title()) ?? ""
+        let title = rawTitle.components(separatedBy: " | ").first?.trimmingCharacters(in: .whitespaces) ?? ""
+        return (urls, title)
+    }
+
+    fileprivate static func baseURL(_ doc: Document, _ pageURL: URL) -> URL {
         if let href = try? doc.select("base[href]").first()?.attr("href"), let b = URL(string: href, relativeTo: pageURL) {
-            base = b.absoluteURL
+            return b.absoluteURL
         }
+        return pageURL
+    }
+
+    /// 선택자에 맞는 요소들(과 그 안쪽 미디어)에서 이미지·영상 주소를 페이지 순서대로 모은다.
+    fileprivate static func mediaURLs(in doc: Document, base: URL, selector: String) throws -> [URL] {
         let matched: Elements
         do {
             matched = try doc.select(selector)
@@ -221,34 +267,42 @@ enum Collector {
             var candidates = urlsFromTag(el)
             // <div class="thumb">, <video> 처럼 감싸는 요소라면 안쪽 미디어도 본다
             if el.tagName() != "img", el.tagName() != "source", let inner = try? el.select(innerMedia) {
-                for i in inner { candidates += urlsFromTag(i) }
+                for i in inner where !isPictureAlternative(i) { candidates += urlsFromTag(i) }
             }
             for raw in candidates {
-                let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if v.isEmpty || v.hasPrefix("data:") || v.hasPrefix("javascript:") || v.hasPrefix("#") { continue }
-                guard let url = URL(string: v, relativeTo: base)?.absoluteURL,
-                      ["http", "https"].contains(url.scheme?.lowercased()),
-                      seen.insert(url.absoluteString).inserted
-                else { continue }
+                guard let url = resolve(raw, base: base), seen.insert(url.absoluteString).inserted else { continue }
                 urls.append(url)
-                if urls.count >= maxURLs { break }
+                if urls.count >= maxURLs { return urls }
             }
-            if urls.count >= maxURLs { break }
         }
-
-        // "카카오프렌즈 클래식 | 카카오 이모티콘샵" → "카카오프렌즈 클래식"
-        let rawTitle = (try? doc.select("meta[property=og:title]").first()?.attr("content")).flatMap { $0.isEmpty ? nil : $0 }
-            ?? (try? doc.title()) ?? ""
-        let title = rawTitle.components(separatedBy: " | ").first?.trimmingCharacters(in: .whitespaces) ?? ""
-        return (urls, title)
+        return urls
     }
 
-    private static func urlsFromTag(_ el: Element) -> [String] {
-        var urls: [String] = []
-        for attr in srcsetAttrs {
-            if let v = try? el.attr(attr), !v.isEmpty, let best = bestFromSrcset(v) { urls.append(best) }
+    fileprivate static func resolve(_ raw: String, base: URL) -> URL? {
+        let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if v.isEmpty || v.hasPrefix("data:") || v.hasPrefix("javascript:") || v.hasPrefix("#") { return nil }
+        guard let url = URL(string: v, relativeTo: base)?.absoluteURL, ["http", "https"].contains(url.scheme?.lowercased()) else {
+            return nil
         }
-        for attr in srcAttrs {
+        return url
+    }
+
+    /// <picture> 안의 <source> 는 같은 그림의 다른 형식·크기라서, 안에 <img> 가 있으면 그 <img> 하나만 본다
+    private static func isPictureAlternative(_ el: Element) -> Bool {
+        guard el.tagName() == "source", let parent = el.parent(), parent.tagName() == "picture" else { return false }
+        return parent.children().contains { $0.tagName() == "img" }
+    }
+
+    fileprivate static func urlsFromTag(_ el: Element) -> [String] {
+        var urls: [String] = []
+        // 같은 그림의 크기별 주소(srcset 후보, src, data-src …) 중에서는 가장 큰 것 하나만
+        let srcset = srcsetAttrs.compactMap { try? el.attr($0) }.filter { !$0.isEmpty }.joined(separator: ",")
+        if let best = bestFromSrcset(srcset) {
+            urls.append(best)
+        } else if let main = mainAttrs.lazy.compactMap({ try? el.attr($0) }).first(where: { !$0.isEmpty }) {
+            urls.append(main)
+        }
+        for attr in extraAttrs {
             if let v = try? el.attr(attr), !v.isEmpty { urls.append(v) }
         }
         if let style = try? el.attr("style"), !style.isEmpty {
@@ -322,6 +376,130 @@ enum Collector {
 
     private static func wanted(_ type: String, _ media: Media) -> Bool {
         media == .all || (media == .video) == type.hasPrefix("video/")
+    }
+}
+
+// MARK: - 페이지에 있는 요소 묶음 (일반 페이지의 "찾을 요소" 고르기)
+
+/// 페이지에서 같은 모양으로 반복되는 이미지·영상 묶음 하나. selector 로 그대로 받을 수 있다.
+struct ElementGroup: Identifiable, Hashable, Sendable {
+    let selector: String
+    let isVideo: Bool
+    /// 이 묶음으로 받게 될 파일 수 (영상은 영상 요소 수)
+    let count: Int
+    /// 미리보기용 주소 몇 개 (영상은 포스터 이미지)
+    let previews: [URL]
+    /// "페이지의 모든 이미지/영상"
+    let isEverything: Bool
+
+    var id: String { selector }
+}
+
+extension Collector {
+    private static let maxGroups = 16
+    /// 상태에 따라 붙었다 떨어지는 클래스는 묶음 이름에 쓰지 않는다
+    private static let unstableClasses: Set<String> = [
+        "lazy", "lazyload", "lazyloaded", "lazyloading", "loaded", "loading", "active", "on", "selected",
+        "show", "hide", "hidden", "visible", "current", "is-active", "is-loaded",
+    ]
+
+    /// 페이지 안의 이미지·영상을 "태그.클래스" 모양이 같은 것끼리 묶는다.
+    /// 묶음마다 만든 선택자를 실제 받기와 같은 규칙(mediaURLs)으로 다시 돌려 개수·미리보기를 정확히 맞춘다.
+    static func scanElements(html: String, pageURL: URL) throws -> [ElementGroup] {
+        let doc = try SwiftSoup.parse(html, pageURL.absoluteString)
+        let base = baseURL(doc, pageURL)
+
+        var signatures: [String] = []
+        var kinds: [String: Bool] = [:]
+        for el in try doc.select("img, video, [style*=url]") {
+            let tag = el.tagName()
+            if tag == "img", isPixel(el) { continue }
+            if tag != "img", tag != "video", urlsFromTag(el).isEmpty { continue }
+            let sig = signature(el)
+            if kinds[sig] == nil {
+                signatures.append(sig)
+                kinds[sig] = tag == "video"
+            }
+        }
+
+        func group(_ selector: String, video: Bool, everything: Bool) -> (ElementGroup, Set<String>)? {
+            guard let urls = try? mediaURLs(in: doc, base: base, selector: selector), !urls.isEmpty else { return nil }
+            let count: Int
+            let previews: [URL]
+            if video {
+                let videos = (try? doc.select(selector).array()) ?? []
+                count = videos.count
+                previews = videos.compactMap { try? $0.attr("poster") }.compactMap { resolve($0, base: base) }
+            } else {
+                count = urls.count
+                // 한 요소가 큰·작은 주소를 같이 갖는 경우가 많아 미리보기는 요소마다 한 장만
+                var shown = Set<String>()
+                var firsts: [URL] = []
+                for el in (try? doc.select(selector).array()) ?? [] {
+                    let inner = (try? el.select(innerMedia).array()) ?? []
+                    let first = ([el] + inner).flatMap(urlsFromTag).lazy.compactMap { resolve($0, base: base) }.first
+                    if let first, shown.insert(first.absoluteString).inserted { firsts.append(first) }
+                    if firsts.count >= 4 { break }
+                }
+                previews = firsts
+            }
+            let g = ElementGroup(
+                selector: selector, isVideo: video, count: count, previews: Array(previews.prefix(4)), isEverything: everything
+            )
+            return (g, Set(urls.map(\.absoluteString)))
+        }
+
+        var result: [ElementGroup] = []
+        var seen: [Set<String>] = []
+        for (selector, video) in [("img", false), ("video", true)] {
+            if let (g, urls) = group(selector, video: video, everything: true) {
+                result.append(g)
+                seen.append(urls)
+            }
+        }
+        var specific: [ElementGroup] = []
+        for sig in signatures where sig != "img" && sig != "video" {
+            guard let (g, urls) = group(sig, video: kinds[sig] ?? false, everything: false), !seen.contains(urls) else { continue }
+            seen.append(urls)
+            specific.append(g)
+        }
+        // 많이 나오는 묶음이 위로 (같으면 페이지 순서)
+        let ordered = specific.enumerated().sorted { a, b in
+            a.element.count != b.element.count ? a.element.count > b.element.count : a.offset < b.offset
+        }.map(\.element)
+        return result + ordered.prefix(maxGroups)
+    }
+
+    /// 1x1 추적 픽셀 같은 것
+    private static func isPixel(_ el: Element) -> Bool {
+        let w = Int((try? el.attr("width")) ?? "") ?? .max
+        let h = Int((try? el.attr("height")) ?? "") ?? .max
+        return w <= 2 || h <= 2
+    }
+
+    /// "img.emoticon", 클래스가 없으면 클래스가 있는 조상을 붙여 "div.thumb img"
+    private static func signature(_ el: Element) -> String {
+        let own = part(el)
+        if own.contains(".") { return own }
+        var ancestor = el.parent()
+        var depth = 0
+        while let a = ancestor, depth < 3, a.tagName() != "body", a.tagName() != "html" {
+            let p = part(a)
+            if p.contains(".") { return "\(p) \(own)" }
+            ancestor = a.parent()
+            depth += 1
+        }
+        return own
+    }
+
+    private static func part(_ el: Element) -> String {
+        let classes = ((try? el.classNames()) ?? []).filter(isUsableClass).sorted().prefix(2)
+        return el.tagName() + classes.map { ".\($0)" }.joined()
+    }
+
+    private static func isUsableClass(_ name: String) -> Bool {
+        name.count <= 40 && !unstableClasses.contains(name.lowercased())
+            && name.wholeMatch(of: /-?[A-Za-z_][A-Za-z0-9_-]*/) != nil
     }
 }
 
