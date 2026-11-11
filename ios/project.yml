@@ -36,7 +36,9 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Toaster
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        # 아이패드는 네 방향 모두 (화면 나눠 쓰기·Stage Manager 에 필요)
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: 받은 이미지와 영상을 사진 앱에 저장하려면 권한이 필요합니다.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         # 맥: 샌드박스 안에서 인터넷 접속과 사용자가 고른 폴더·다운로드 폴더 쓰기만 허용
