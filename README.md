@@ -6,6 +6,13 @@
 - `web/`: Next.js 웹
 - `deploy/`: 웹 Docker 배포 (Dockerfile, compose)
 
+## 기능
+
+- **카카오 이모티콘 탭** (`#kakao`, 기본): 이모티콘 링크 끝주소(`kakao-friends-classic`)나 공유 링크 전체를 넣으면
+  이모티콘을 모두 받아 `<끝주소>.zip`으로 자동 저장한다. 이모티콘샵은 JS로 그려지므로
+  **서버를 `WITH_BROWSER=true` 이미지로 띄워야 한다.** 선택자는 `web/src/lib/kakao.ts`에 있다.
+- **일반 페이지 탭** (`#general`): 아무 페이지 주소와 CSS 선택자로 이미지를 모은다.
+
 ## 웹 개발
 
 ```bash
