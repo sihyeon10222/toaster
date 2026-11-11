@@ -1,4 +1,4 @@
-// HTML 에서 CSS 선택자로 이미지·영상 주소를 모은다. (예전 toaster-server scraper.extract_media_urls 를 옮긴 것)
+// HTML 에서 CSS 선택자로 이미지·영상 주소를 모은다. (없어진 파이썬 서버의 scraper.extract_media_urls 를 옮긴 것)
 // iOS 앱의 Collector.swift 와 같은 규칙이다. 한쪽을 고치면 다른 쪽도 같이 고친다.
 import "server-only";
 import * as cheerio from "cheerio";

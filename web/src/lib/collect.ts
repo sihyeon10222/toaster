@@ -1,5 +1,5 @@
 // 브라우저에서 돌아가는 수집 과정: 페이지 분석(/api/scan) → 파일 받기(/api/file) → 형식 판별·중복 제거 → zip.
-// 예전에는 파이썬 toaster-server 가 하던 일이다.
+// 예전에는 따로 띄운 파이썬 서버가 하던 일이다.
 import { zipSync } from "fflate";
 import { loopForever } from "@/lib/animation";
 import { imageLook, smallerDuplicates, type ImageLook } from "@/lib/image-look";

@@ -1,5 +1,5 @@
 // 사용자가 넣은 주소로 요청을 보낼 때 내부망(SSRF)을 막는다. 리다이렉트마다 다시 검사한다.
-// (예전 toaster-server 의 safety.py · SafeClient 를 옮긴 것)
+// (없어진 파이썬 서버의 safety.py · SafeClient 를 옮긴 것)
 import "server-only";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";

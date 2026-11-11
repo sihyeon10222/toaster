@@ -1,4 +1,4 @@
-# toaster-client 웹(Next.js) 이미지. Vercel 대신 직접 띄울 때 쓴다. 빌드 컨텍스트는 toaster-client/web
+# toaster 웹(Next.js) 이미지. Vercel 대신 직접 띄울 때 쓴다. 빌드 컨텍스트는 toaster/web
 #
 #   docker build -f deploy/Dockerfile -t toaster-web web
 #

@@ -1,10 +1,10 @@
-# toaster-client 웹 실행
-#   cd toaster-client/deploy
+# toaster 웹 실행
+#   cd toaster/deploy
 #   cp .env.example .env      # 필요하면 WEB_PORT 변경
 #   docker compose up -d --build
 #
 # 따로 띄울 서버는 없다.
-name: toaster-client
+name: toaster
 
 services:
   web:
