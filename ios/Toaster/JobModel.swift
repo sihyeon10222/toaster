@@ -37,17 +37,13 @@ final class JobModel {
     /// 텔레그램 스티커 규격으로 바꿔 `<저장 폴더>/<name>_telegram/1.webm …` 에 넣는다.
     func saveStickers(_ folder: SaveFolder, name: String) async {
         guard let job, !job.images.isEmpty, stickerProgress == nil else { return }
-        guard let server = Sticker.serverURL else {
-            saveMessage = "설정에서 텔레그램 변환 서버 주소를 먼저 넣어 주세요."
-            return
-        }
         saveMessage = nil
         stickerErrors = []
-        stickerProgress = (0, job.images.count)
+        let total = job.images.count + 1  // 썸네일 하나 더
+        stickerProgress = (0, total)
         defer { stickerProgress = nil }
 
-        let total = job.images.count
-        let result = await Sticker.convert(job.images, referer: job.url, server: server) { [weak self] done in
+        let result = await Sticker.convert(job.images, referer: job.url, server: Sticker.server) { [weak self] done in
             self?.stickerProgress = (done, total)
         }
         stickerErrors = result.errors
@@ -57,7 +53,9 @@ final class JobModel {
         }
         do {
             let target = try folder.write(result.files, into: "\(name)_telegram")
-            saveMessage = "\(folder.displayName)/\(target.lastPathComponent) 에 스티커 \(result.files.count)개 저장했습니다."
+            let stickers = result.files.filter { !$0.name.hasPrefix("thumbnail.") }.count
+            let what = result.files.count > stickers ? "스티커 \(stickers)개와 썸네일을" : "스티커 \(stickers)개를"
+            saveMessage = "\(folder.displayName)/\(target.lastPathComponent) 에 \(what) 저장했습니다."
         } catch {
             saveMessage = error.localizedDescription
         }
