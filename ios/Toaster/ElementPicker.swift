@@ -258,7 +258,7 @@ private struct PreviewTile: View {
     let url: URL?
     let referer: URL?
     let isVideo: Bool
-    @State private var image: CGImage?
+    @State private var image: ImageFrames?
     @State private var failed = false
 
     var body: some View {
@@ -269,7 +269,7 @@ private struct PreviewTile: View {
                 Checkerboard(cell: 6)
             }
             if let image {
-                Image(decorative: image, scale: 1).resizable().scaledToFit().padding(3)
+                FramesView(frames: image, scale: 1).padding(3)
             } else if isVideo {
                 EmptyView()
             } else if url != nil && !failed {

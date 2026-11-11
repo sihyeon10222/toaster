@@ -297,29 +297,12 @@ private struct Thumbnail: View {
     var inset: CGFloat = 6
 
     var body: some View {
+        // 영상과 움직이는 그림은 소리 없이 끝없이 반복한다
         if file.isVideo {
-            ZStack {
-                Color.black
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 26))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.black, .white.opacity(0.9))
-            }
-        } else if file.isSVG {
-            Checkerboard()
-                .overlay { LocalImage(url: file.fileURL, isSVG: true, side: 120, inset: inset) }
-                .clipped()
+            LoopingVideo(url: file.fileURL)
         } else {
             Checkerboard()
-                .overlay {
-                    AsyncImage(url: file.fileURL) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFit().padding(inset)
-                        case .failure: Image(systemName: "photo").foregroundStyle(Color.tMuted)
-                        default: ProgressView().controlSize(.small)
-                        }
-                    }
-                }
+                .overlay { LocalImage(url: file.fileURL, isSVG: file.isSVG, side: 120, inset: inset) }
                 .clipped()
         }
     }
@@ -328,27 +311,22 @@ private struct Thumbnail: View {
 private struct FilePreview: View {
     let file: CollectedFile
     @Environment(\.dismiss) private var dismiss
-    @State private var player: AVPlayer?
+    @State private var looper: VideoLooper?
 
     var body: some View {
         NavigationStack {
             Group {
                 if file.isVideo {
-                    VideoPlayer(player: player)
-                        .onAppear { player = AVPlayer(url: file.fileURL) }
-                        .onDisappear { player?.pause() }
-                } else if file.isSVG {
-                    Checkerboard(cell: 12)
-                        .overlay { LocalImage(url: file.fileURL, isSVG: true, side: 360).padding(24) }
+                    // 크게 볼 때는 소리를 켜고 조작 버튼을 보여 주되, 끝나면 처음부터 다시 돈다
+                    VideoPlayer(player: looper?.player)
+                        .onAppear {
+                            if looper == nil { looper = VideoLooper(url: file.fileURL, muted: false) }
+                            looper?.player.play()
+                        }
+                        .onDisappear { looper?.player.pause() }
                 } else {
                     Checkerboard(cell: 12)
-                        .overlay {
-                            AsyncImage(url: file.fileURL) { image in
-                                image.resizable().scaledToFit().padding(24)
-                            } placeholder: {
-                                ProgressView()
-                            }
-                        }
+                        .overlay { LocalImage(url: file.fileURL, isSVG: file.isSVG, side: 400).padding(24) }
                 }
             }
             .ignoresSafeArea(edges: .bottom)

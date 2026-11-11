@@ -54,7 +54,7 @@ export function EmptyPanel({ mode }: { mode: Mode }) {
         </h1>
         <p className="text-[15px] leading-relaxed text-muted">
           {mode === "kakao"
-            ? "받기가 끝나면 끝주소 이름의 zip 파일이 자동으로 저장됩니다."
+            ? "받기가 끝나면 미리 보고, 저장 버튼을 눌러 끝주소 이름의 zip 파일로 저장합니다."
             : "찾은 이미지와 영상을 미리 보고 하나씩 또는 zip으로 저장할 수 있습니다."}
         </p>
       </div>
@@ -103,7 +103,8 @@ function Tile({ file }: { file: CollectedFile }) {
     <li className="group animate-fade-in overflow-hidden rounded-2xl border border-line bg-surface transition hover:border-line-strong hover:shadow-card">
       <div className="relative">
         {file.kind === "video" ? (
-          <video src={file.url} controls muted playsInline preload="metadata" className="block aspect-square w-full bg-black object-contain" />
+          // 미리보기는 소리 없이 계속 반복 재생한다
+          <video src={file.url} autoPlay loop muted playsInline controls className="block aspect-square w-full bg-black object-contain" />
         ) : (
           <a href={file.url} target="_blank" rel="noreferrer" className="checker block aspect-square">
             {/* eslint-disable-next-line @next/next/no-img-element -- 브라우저가 받은 임의 이미지(blob)라 next/image 대상이 아님 */}
@@ -145,7 +146,7 @@ function FileTable({ files }: { files: CollectedFile[] }) {
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="checker block size-12 shrink-0 overflow-hidden rounded-lg border border-line">
                     {f.kind === "video" ? (
-                      <video src={f.url} muted preload="metadata" className="h-full w-full bg-black object-contain" />
+                      <video src={f.url} autoPlay loop muted playsInline className="h-full w-full bg-black object-contain" />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element -- 브라우저가 받은 임의 이미지(blob)
                       <img src={f.url} alt="" loading="lazy" className="h-full w-full object-contain p-1" />

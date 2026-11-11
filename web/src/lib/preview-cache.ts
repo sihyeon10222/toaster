@@ -1,5 +1,6 @@
 // "찾을 요소" 고르기의 미리보기 그림. /api/file 로 받아 Cache Storage 에 넣어 두고 다시 쓴다.
 // 설정의 "캐시 삭제"가 이 저장소를 비운다. (iOS 앱은 URLCache 와 임시 폴더가 같은 역할)
+import { loopForever } from "@/lib/animation";
 import { sniffType } from "@/lib/sniff";
 
 const CACHE_NAME = "toaster-previews";
@@ -21,7 +22,7 @@ export async function loadPreview(url: string, referer: string, signal?: AbortSi
     const bytes = new Uint8Array(await res.arrayBuffer());
     const type = sniffType(bytes);
     if (!type || !type.startsWith("image/")) return null;
-    return URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
+    return URL.createObjectURL(new Blob([loopForever(bytes, type) as BlobPart], { type }));
   } catch {
     return null;
   }

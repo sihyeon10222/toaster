@@ -1,6 +1,7 @@
 // 브라우저에서 돌아가는 수집 과정: 페이지 분석(/api/scan) → 파일 받기(/api/file) → 형식 판별·중복 제거 → zip.
 // 예전에는 파이썬 toaster-server 가 하던 일이다.
 import { zipSync } from "fflate";
+import { loopForever } from "@/lib/animation";
 import { imageLook, smallerDuplicates, type ImageLook } from "@/lib/image-look";
 import { EXT_BY_TYPE, sniffType } from "@/lib/sniff";
 
@@ -17,7 +18,7 @@ export interface CollectInput {
 export interface CollectedFile {
   kind: "image" | "video";
   filename: string;
-  /** 화면에 보여 줄 blob: 주소 */
+  /** 화면에 보여 줄 blob: 주소 (움직이는 그림은 무한 반복하도록 고친 사본) */
   url: string;
   blob: Blob;
   source_url: string;
@@ -122,7 +123,7 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
           results[index] = {
             kind: type.startsWith("video/") ? "video" : "image",
             filename: `${String(index + 1).padStart(width, "0")}${EXT_BY_TYPE[type]}`,
-            url: URL.createObjectURL(blob),
+            url: URL.createObjectURL(new Blob([loopForever(bytes, type) as BlobPart], { type })),
             blob,
             source_url: url,
             content_type: type,

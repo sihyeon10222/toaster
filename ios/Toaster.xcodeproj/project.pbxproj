@@ -24,6 +24,7 @@
 		BEA66DD0318546A9CBC534D6 /* JobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 124D167D6FB9684C816516B6 /* JobStore.swift */; };
 		BFB10AF38E7B1C6987A426EE /* ImageLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 385A511C0DAE2338271FAEB1 /* ImageLook.swift */; };
 		D5755CBD9CC6AE6463841210 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19846FA236DC689A2F97C12A /* SettingsView.swift */; };
+		D60D5C44650DBF4D7711D2DE /* AnimatedImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98D5C18AA5C3B03AD3BA6D1 /* AnimatedImage.swift */; };
 		DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC349D0D6C30A9FE713EA42 /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +45,7 @@
 		BCA79A132B032B92A088CB4E /* SwipeToDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeToDelete.swift; sourceTree = "<group>"; };
 		BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Housekeeping.swift; sourceTree = "<group>"; };
 		D984814AD1941C2920364CB1 /* Kakao.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kakao.swift; sourceTree = "<group>"; };
+		D98D5C18AA5C3B03AD3BA6D1 /* AnimatedImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedImage.swift; sourceTree = "<group>"; };
 		DCC349D0D6C30A9FE713EA42 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVGRenderer.swift; sourceTree = "<group>"; };
 		FF4513051A5753B70A03C6AF /* JobResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobResultView.swift; sourceTree = "<group>"; };
@@ -80,6 +82,7 @@
 		E64F66EDE262408AFFC569A7 /* Toaster */ = {
 			isa = PBXGroup;
 			children = (
+				D98D5C18AA5C3B03AD3BA6D1 /* AnimatedImage.swift */,
 				9D9459702A434793819F0023 /* Collector.swift */,
 				DCC349D0D6C30A9FE713EA42 /* ContentView.swift */,
 				A4A437F66E13BDD515F596FD /* ElementPicker.swift */,
@@ -162,6 +165,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D60D5C44650DBF4D7711D2DE /* AnimatedImage.swift in Sources */,
 				ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */,
 				DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */,
 				7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */,

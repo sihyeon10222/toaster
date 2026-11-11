@@ -80,7 +80,8 @@ private final class CGImageBox {
     init(_ image: CGImage) { self.image = image }
 }
 
-/// 받아 둔 파일(또는 바이트)을 보여 주는 그림. SVG 는 SVGRenderer 로, 나머지는 ImageIO 로 줄여 그린다.
+/// 받아 둔 파일을 보여 주는 그림. SVG 는 SVGRenderer 로, 나머지는 ImageIO 로 줄여 그린다.
+/// 움직이는 GIF·WEBP·APNG 는 끝없이 반복해서 움직인다.
 struct LocalImage: View {
     let url: URL
     let isSVG: Bool
@@ -88,14 +89,14 @@ struct LocalImage: View {
     var side: CGFloat = 200
     var inset: CGFloat = 0
 
-    @State private var image: CGImage?
+    @State private var frames: ImageFrames?
     @State private var failed = false
     @Environment(\.displayScale) private var scale
 
     var body: some View {
         Group {
-            if let image {
-                Image(decorative: image, scale: scale).resizable().scaledToFit().padding(inset)
+            if let frames {
+                FramesView(frames: frames, scale: scale).padding(inset)
             } else if failed {
                 Image(systemName: "photo").foregroundStyle(Color.tMuted)
             } else {
@@ -105,18 +106,12 @@ struct LocalImage: View {
         .task(id: url) {
             guard let data = try? Data(contentsOf: url) else { failed = true; return }
             let pixels = Int(side * scale)
-            image = isSVG ? await SVGRenderer.shared.render(data, pixels: pixels) : Self.downsample(data, maxPixel: pixels)
-            failed = image == nil
+            if isSVG {
+                frames = await SVGRenderer.shared.render(data, pixels: pixels).map(ImageFrames.init(single:))
+            } else {
+                frames = await Task.detached(priority: .userInitiated) { ImageFrames.decode(data, maxPixel: pixels) }.value
+            }
+            failed = frames == nil
         }
-    }
-
-    nonisolated static func downsample(_ data: Data, maxPixel: Int) -> CGImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-        ]
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }

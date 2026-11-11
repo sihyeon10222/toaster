@@ -185,17 +185,14 @@ enum Collector {
     }
 
     /// 요소 고르기 화면의 작은 미리보기. 원본을 받아 긴 변 maxPixel 로 줄인다.
-    static func thumbnail(_ url: URL, referer: URL, maxPixel: Int = 160) async -> CGImage? {
+    /// 움직이는 그림은 장면을 모두 풀어 돌려준다 (미리보기에서 끝없이 반복).
+    static func thumbnail(_ url: URL, referer: URL, maxPixel: Int = 160) async -> ImageFrames? {
         guard let (data, _) = try? await load(request(url, referer: referer)) else { return nil }
         // SVG 는 ImageIO 가 못 읽어서 웹뷰에 그려 뜬다
-        if sniffType(data) == "image/svg+xml" { return await SVGRenderer.shared.render(data, pixels: maxPixel) }
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-        ]
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        if sniffType(data) == "image/svg+xml" {
+            return await SVGRenderer.shared.render(data, pixels: maxPixel).map(ImageFrames.init(single:))
+        }
+        return ImageFrames.decode(data, maxPixel: maxPixel)
     }
 
     private static func fetchHTML(_ url: URL) async throws -> (String, URL) {
