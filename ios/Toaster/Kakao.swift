@@ -11,20 +11,17 @@ enum Kakao {
     private static var slugPattern: Regex<Substring> { /^[a-z0-9]+(?:-[a-z0-9]+)*$/.ignoresCase() }
     private static var pathPattern: Regex<(Substring, Substring)> { /^\/(?:app\/)?t\/([^\/]+)\/?$/ }
 
-    /// 사용자가 넣은 값에서 이모티콘 주소 끝부분(slug)을 뽑는다.
-    ///   kakao-friends-classic
+    /// 입력칸에 미리 보여 줄 링크 모양
+    static let linkPlaceholder = "https://e.kakao.com/t/…"
+
+    /// 이모티콘샵 링크에서 이모티콘 주소 끝부분(slug)을 뽑는다. https://e.kakao.com/ 링크만 받는다.
     ///   https://e.kakao.com/t/kakao-friends-classic
     ///   https://e.kakao.com/app/t/kakao-friends-classic?t_ch=shared_item
-    ///   e.kakao.com/t/kakao-friends-classic/
-    /// 형식이 맞지 않으면 nil.
+    /// 끝주소만 넣거나 다른 주소면 nil.
     static func parseSlug(_ input: String) -> String? {
         let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return nil }
-        if value.wholeMatch(of: slugPattern) != nil { return value.lowercased() }
-
-        let withScheme = value.range(of: #"^https?://"#, options: [.regularExpression, .caseInsensitive]) != nil
-            ? value : "https://\(value)"
-        guard let components = URLComponents(string: withScheme),
+        guard value.range(of: #"^https?://e\.kakao\.com/"#, options: [.regularExpression, .caseInsensitive]) != nil,
+              let components = URLComponents(string: value),
               components.host?.lowercased() == "e.kakao.com",
               let match = components.percentEncodedPath.wholeMatch(of: pathPattern),
               let slug = String(match.1).removingPercentEncoding,

@@ -7,22 +7,22 @@ export const KAKAO_EMOTICON_SELECTOR = "ul.grid li button img";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
 
+/** 입력칸에 미리 보여 줄 링크 모양 */
+export const KAKAO_LINK_PLACEHOLDER = "https://e.kakao.com/t/…";
+
 /**
- * 사용자가 넣은 값에서 이모티콘 주소 끝부분(slug)을 뽑는다.
- *   kakao-friends-classic
+ * 이모티콘샵 링크에서 이모티콘 주소 끝부분(slug)을 뽑는다. https://e.kakao.com/ 링크만 받는다.
  *   https://e.kakao.com/t/kakao-friends-classic
  *   https://e.kakao.com/app/t/kakao-friends-classic?t_ch=shared_item
- *   e.kakao.com/t/kakao-friends-classic/
- * 형식이 맞지 않으면 null.
+ * 끝주소만 넣거나 다른 주소면 null.
  */
 export function parseKakaoSlug(input: string): string | null {
   const value = input.trim();
-  if (!value) return null;
-  if (SLUG_RE.test(value)) return value.toLowerCase();
+  if (!/^https?:\/\/e\.kakao\.com\//i.test(value)) return null;
 
   let url: URL;
   try {
-    url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    url = new URL(value);
   } catch {
     return null;
   }

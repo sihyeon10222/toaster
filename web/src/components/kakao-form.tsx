@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { CheckIcon } from "@/components/icons";
 import { ErrorBox, PasteButton, buttonPrimary, hintText, labelText } from "@/components/ui";
-import { kakaoEmoticonUrl, parseKakaoSlug } from "@/lib/kakao";
+import { KAKAO_LINK_PLACEHOLDER, kakaoEmoticonUrl, parseKakaoSlug } from "@/lib/kakao";
 
-/** 카카오 이모티콘 입력: 링크 끝주소나 공유 링크 */
+/** 카카오 이모티콘 입력: https://e.kakao.com/ 이모티콘샵 링크만 */
 export function KakaoForm({ onSubmit }: { onSubmit: (slug: string) => void }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function KakaoForm({ onSubmit }: { onSubmit: (slug: string) => void }) {
     e.preventDefault();
     const slug = parseKakaoSlug(input);
     if (!slug) {
-      setError("이모티콘 링크 형식이 아닙니다. 카카오톡 이모티콘샵에서 공유한 링크를 넣어 주세요.");
+      setError("https://e.kakao.com/ 으로 시작하는 이모티콘샵 링크만 받을 수 있습니다. 카카오톡 이모티콘샵에서 공유 → 링크 복사한 주소를 넣어 주세요.");
       return;
     }
     setError(null);
@@ -35,7 +35,7 @@ export function KakaoForm({ onSubmit }: { onSubmit: (slug: string) => void }) {
               required
               autoComplete="off"
               spellCheck={false}
-              placeholder="공유 링크 또는 끝주소"
+              placeholder={KAKAO_LINK_PLACEHOLDER}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -48,7 +48,7 @@ export function KakaoForm({ onSubmit }: { onSubmit: (slug: string) => void }) {
           <PasteButton
             onPaste={(text) => {
               setInput(text);
-              setError(parseKakaoSlug(text) ? null : "복사한 내용이 이모티콘 링크가 아닙니다.");
+              setError(parseKakaoSlug(text) ? null : "복사한 내용이 https://e.kakao.com/ 이모티콘 링크가 아닙니다.");
             }}
             onError={setError}
           />
