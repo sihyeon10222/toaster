@@ -59,7 +59,7 @@ export function KakaoForm({ onSubmit }: { onSubmit: (slug: string) => void }) {
               <span className="font-mono text-ink">{kakaoEmoticonUrl(preview)}</span> 에서 받습니다.
             </>
           ) : (
-            "카카오톡 이모티콘샵에서 공유 → 링크 복사 후 붙여넣기를 누르세요."
+            "카카오톡 이모티콘샵에서 공유 → 링크 복사 후 오른쪽 붙여넣기 버튼을 누르세요."
           )}
         </span>
       </div>

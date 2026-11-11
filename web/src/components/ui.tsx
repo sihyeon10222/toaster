@@ -79,7 +79,7 @@ export function Segmented<T extends string>({
   );
 }
 
-/** 클립보드의 글자를 붙여 넣는 버튼. 브라우저가 막으면 onError 로 알린다. */
+/** 클립보드의 글자를 붙여 넣는 버튼 (아이콘만). 브라우저가 막으면 onError 로 알린다. */
 export function PasteButton({ onPaste, onError }: { onPaste: (text: string) => void; onError: (message: string) => void }) {
   return (
     <button
@@ -93,10 +93,11 @@ export function PasteButton({ onPaste, onError }: { onPaste: (text: string) => v
           onError("브라우저가 클립보드 읽기를 막았습니다. 입력칸에 직접 붙여 넣어 주세요.");
         }
       }}
-      className={`inline-flex h-12 shrink-0 items-center gap-1.5 rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-surface-2 ${focusRing}`}
+      aria-label="붙여넣기"
+      title="붙여넣기"
+      className={`inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-ink text-bg transition hover:opacity-90 ${focusRing}`}
     >
-      <ClipboardIcon className="size-4" />
-      붙여넣기
+      <ClipboardIcon className="size-5" />
     </button>
   );
 }

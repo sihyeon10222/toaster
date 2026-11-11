@@ -173,7 +173,7 @@ struct StatusPill: View {
     }
 }
 
-/// 클립보드의 링크를 붙여 넣는 버튼. 시스템 붙여넣기 버튼이라 "붙여넣기 허용" 알림이 뜨지 않는다.
+/// 클립보드의 링크를 붙여 넣는 버튼 (아이콘만). 시스템 붙여넣기 버튼이라 "붙여넣기 허용" 알림이 뜨지 않는다.
 struct PasteLinkButton: View {
     let onPaste: (String) -> Void
 
@@ -183,7 +183,7 @@ struct PasteLinkButton: View {
                 Task { @MainActor in onPaste(text) }
             }
         }
-        .labelStyle(.titleAndIcon)
+        .labelStyle(.iconOnly)
         .buttonBorderShape(.roundedRectangle(radius: 12))
         .tint(.tInk)
         .frame(height: 50)
