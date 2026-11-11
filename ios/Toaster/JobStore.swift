@@ -15,7 +15,7 @@ final class JobEntry: Identifiable {
     let mode: Mode
     /// 기록 제목 (이모티콘 끝주소 또는 페이지 주소)
     let title: String
-    /// 저장 폴더 안에 만들 폴더 이름 (카카오는 끝주소, 일반은 사이트 주소)
+    /// 저장 폴더 안에 만들 폴더 이름 (카카오는 끝주소, 일반은 사이트 주소. - 는 _ 로 바꾼다)
     let folderName: String
     let startedAt = Date()
     let model = JobModel()
@@ -24,7 +24,8 @@ final class JobEntry: Identifiable {
     init(mode: Mode, title: String, folderName: String) {
         self.mode = mode
         self.title = title
-        self.folderName = folderName
+        // 폴더 이름에는 - 대신 _ 를 쓴다 (kakao-friends-classic → kakao_friends_classic, 웹 zip 이름과 같은 규칙)
+        self.folderName = folderName.replacingOccurrences(of: "-", with: "_")
     }
 
     var isRunning: Bool { model.job.map { !$0.status.isFinished } ?? true }
