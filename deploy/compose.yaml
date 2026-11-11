@@ -1,0 +1,22 @@
+# toaster-client 웹 실행
+#   cd toaster-client/deploy
+#   cp .env.example .env      # TOASTER_API_URL 을 실제 서버 주소로
+#   docker compose up -d --build
+#
+# 서버(toaster-server)는 따로 띄우고, 그 서버의 TOASTER_CORS_ORIGINS 에 이 웹 주소를 넣어야 한다.
+name: toaster-client
+
+services:
+  web:
+    build:
+      context: ../web
+      dockerfile: ../deploy/Dockerfile
+      args:
+        # 브라우저가 직접 호출하는 주소라서 컨테이너 내부 이름이 아니라 외부에서 보이는 주소여야 함
+        NEXT_PUBLIC_TOASTER_API_URL: ${TOASTER_API_URL:-http://127.0.0.1:8000}
+    image: toaster-web:latest
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
