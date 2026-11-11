@@ -4,6 +4,7 @@
 크롤링·다운로드는 서버가 하고, 클라이언트는 입력과 결과 표시·저장만 한다.
 
 - `web/`: Next.js 웹
+- `ios/`: SwiftUI 앱 (iOS 17+)
 - `deploy/`: 웹 Docker 배포 (Dockerfile, compose)
 
 ## 기능
@@ -23,6 +24,17 @@ npm run dev                   # http://localhost:3000
 ```
 
 서버의 `TOASTER_CORS_ORIGINS`에 웹 주소가 들어 있어야 브라우저에서 호출된다.
+
+## iOS 앱 개발
+
+```bash
+cd ios
+xcodegen                      # project.yml → Toaster.xcodeproj
+open Toaster.xcodeproj
+```
+
+웹과 같은 두 탭(카카오 이모티콘 / 일반 페이지)이 있다. 결과는 사진 앱에 저장하거나 `<끝주소>.zip`을 공유 시트로 내보낸다.
+서버 주소는 기본 `http://127.0.0.1:8000`(시뮬레이터용)이고, 실기기에서는 앱의 서버 설정에서 Mac IP나 배포 주소로 바꾼다.
 
 ## Docker 배포
 
