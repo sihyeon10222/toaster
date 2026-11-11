@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 /// 텔레그램 스티커 변환. VP9 WEBM 은 애플 기기에서 만들 수 없어서(인코더가 없음)
 /// 웹을 올려 둔 서버(Vercel)의 `/api/telegram` 에 맡긴다. 맥북이 꺼져 있어도 된다.
@@ -69,9 +70,32 @@ enum Sticker {
         return (out, errors)
     }
 
+    /// 이미 텔레그램 규격에 맞는 정지 그림이면 바꾸지 않고 그대로 쓴다. (웹의 lib/telegram.ts asIs 와 같은 규칙)
+    ///   스티커: PNG·WEBP, 한 변이 정확히 512px(다른 변 512 이하), 512KB 이하
+    ///   썸네일: PNG·WEBP, 정확히 100x100, 128KB 이하
+    /// 움직이는 그림·영상은 늘 서버에서 VP9 WEBM 으로 바꾼다.
+    private static func asIs(_ file: CollectedFile, thumb: Bool) -> (Data, String)? {
+        let ext: String
+        switch file.contentType {
+        case "image/png": ext = "png"
+        case "image/webp": ext = "webp"
+        default: return nil
+        }
+        guard file.size <= (thumb ? 128 : 512) * 1024,
+              let data = try? Data(contentsOf: file.fileURL),
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) == 1,  // 움직이는 PNG·WEBP 는 장면이 여럿
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int
+        else { return nil }
+        let fits = thumb ? (w == 100 && h == 100) : (max(w, h) == 512 && w <= 512 && h <= 512)
+        return fits ? (data, ext) : nil
+    }
+
     private static func convertOne(
         _ file: CollectedFile, referer: String, server: URL, thumb: Bool
     ) async throws -> (Data, String) {
+        if let ready = asIs(file, thumb: thumb) { return ready }
         var components = URLComponents(url: server.appending(path: "api/telegram"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "url", value: file.sourceURL.absoluteString),

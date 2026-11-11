@@ -1,6 +1,7 @@
 // 받은 파일들을 /api/telegram 으로 텔레그램 스티커 규격에 맞게 바꿔 zip 으로 묶는다.
 // 팩 썸네일도 같이 만든다: 첫 번째 이미지(GIF 포함, 없으면 첫 파일) → thumbnail.png 또는 움직이면 thumbnail.webm
 import { zipSync } from "fflate";
+import { isAnimated } from "@/lib/animation";
 import type { CollectedFile } from "@/lib/collect";
 
 const CONCURRENCY = 3;
@@ -15,7 +16,32 @@ export interface StickerResult {
   errors: string[];
 }
 
+/**
+ * 이미 텔레그램 규격에 맞는 정지 그림이면 바꾸지 않고 그대로 쓴다.
+ *   스티커: PNG·WEBP, 한 변이 정확히 512px(다른 변 512 이하), 512KB 이하
+ *   썸네일: PNG·WEBP, 정확히 100x100, 128KB 이하
+ * 움직이는 그림·영상은 늘 서버에서 VP9 WEBM 으로 바꾼다.
+ */
+async function asIs(file: CollectedFile, thumb: boolean) {
+  const ext = file.content_type === "image/png" ? "png" : file.content_type === "image/webp" ? "webp" : null;
+  if (!ext || file.size > (thumb ? 128 : 512) * 1024) return null;
+  const bytes = new Uint8Array(await file.blob.arrayBuffer());
+  if (isAnimated(bytes, file.content_type)) return null;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file.blob);
+  } catch {
+    return null;
+  }
+  const { width: w, height: h } = bitmap;
+  bitmap.close();
+  const fits = thumb ? w === 100 && h === 100 : Math.max(w, h) === 512 && w <= 512 && h <= 512;
+  return fits ? { ext, blob: file.blob } : null;
+}
+
 async function convertOne(file: CollectedFile, referer: string, thumb: boolean) {
+  const ready = await asIs(file, thumb);
+  if (ready) return ready;
   const q = new URLSearchParams({ url: file.source_url, referer });
   if (thumb) q.set("thumb", "1");
   const res = await fetch(`/api/telegram?${q}`);
