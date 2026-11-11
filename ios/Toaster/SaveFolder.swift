@@ -11,11 +11,22 @@ final class SaveFolder {
     private(set) var url: URL?
 
     init() {
-        url = Self.restore()
+        url = Self.restore() ?? Self.defaultURL
+    }
+
+    /// 처음 상태: 맥은 다운로드 폴더, 아이폰은 고르지 않음 (설정에서 바꿀 수 있다)
+    private static var defaultURL: URL? {
         #if os(macOS)
-        // 맥은 처음엔 다운로드 폴더에 저장한다 (설정에서 바꿀 수 있다)
-        if url == nil { url = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first }
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        #else
+        nil
         #endif
+    }
+
+    /// 고른 폴더를 잊고 처음 상태로 돌린다 (앱 초기화)
+    func reset() {
+        UserDefaults.standard.removeObject(forKey: Self.bookmarkKey)
+        url = Self.defaultURL
     }
 
     /// 화면에 보여 줄 폴더 이름. 아이폰 "나의 iPhone" 최상위는 시스템 이름이 "File Provider Storage" 라 바꿔 보여 준다.

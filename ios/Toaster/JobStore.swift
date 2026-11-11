@@ -19,6 +19,7 @@ final class JobEntry: Identifiable {
     let folderName: String
     let startedAt = Date()
     let model = JobModel()
+    fileprivate var task: Task<Void, Never>?
 
     init(mode: Mode, title: String, folderName: String) {
         self.mode = mode
@@ -59,8 +60,36 @@ final class JobStore {
     func start(mode: Mode, title: String, input: CollectInput, folderName: String) -> JobEntry {
         let entry = JobEntry(mode: mode, title: title, folderName: folderName)
         entries.insert(entry, at: 0)
-        if entries.count > Self.maxEntries { entries.removeLast() }
-        Task { await entry.model.start(input) }
+        if entries.count > Self.maxEntries { discard(entries.removeLast()) }
+        entry.task = Task { await entry.model.start(input) }
         return entry
+    }
+
+    /// 기록 하나를 지운다. 받는 중이면 멈추고, 기기에 임시로 받아 둔 파일도 지운다.
+    func remove(_ id: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        discard(entries.remove(at: index))
+    }
+
+    func removeAll() {
+        let old = entries
+        entries = []
+        old.forEach(discard)
+    }
+
+    /// 지금 기록에 남아 있는 작업들이 쓰는 임시 폴더 (캐시 삭제 때 건드리지 않는다)
+    var liveFolders: Set<URL> {
+        Set(entries.flatMap { $0.model.job?.images.map { $0.fileURL.deletingLastPathComponent().standardizedFileURL } ?? [] })
+    }
+
+    /// 기록에 남은 작업들이 받아 둔 파일 크기 합
+    var downloadedBytes: Int {
+        entries.reduce(0) { sum, entry in sum + (entry.model.job?.images.reduce(0) { $0 + $1.size } ?? 0) }
+    }
+
+    private func discard(_ entry: JobEntry) {
+        entry.task?.cancel()
+        let folders = Set(entry.model.job?.images.map { $0.fileURL.deletingLastPathComponent() } ?? [])
+        for folder in folders { try? FileManager.default.removeItem(at: folder) }
     }
 }

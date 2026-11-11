@@ -10,9 +10,11 @@ struct ContentView: View {
     // 입력값은 여기 두어 모드를 바꿔도 남게 한다
     @State private var kakaoInput = ""
     @State private var pageURL = ""
-    @State private var selector = "img"
     @State private var render = false
     @State private var media: Media = .image
+    @State private var scan = PageScan()
+    /// 최근 작업에서 밀어서 삭제 버튼이 열린 줄
+    @State private var swipedID: String?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -25,7 +27,7 @@ struct ContentView: View {
                         switch mode {
                         case .kakao: KakaoForm(input: $kakaoInput, onSubmit: startKakao)
                         case .general:
-                            GeneralForm(pageURL: $pageURL, selector: $selector, render: $render, media: $media, onSubmit: startGeneral)
+                            GeneralForm(pageURL: $pageURL, render: $render, media: $media, scan: scan, onSubmit: startGeneral)
                         }
                     }
                     .card()
@@ -51,7 +53,9 @@ struct ContentView: View {
         }
         .tint(.tInk)
         .environment(folder)
-        .sheet(isPresented: $showingSettings) { SettingsView().environment(folder) }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(store: store, onReset: resetApp).environment(folder)
+        }
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 640)
         #endif
@@ -61,6 +65,12 @@ struct ContentView: View {
             if let slug = UserDefaults.standard.string(forKey: "autoKakao"), store.entries.isEmpty {
                 kakaoInput = slug
                 startKakao(slug)
+            }
+            // `-autoPage <주소>` 는 일반 페이지 탭에 주소를 넣고 요소를 살펴본다
+            if let page = UserDefaults.standard.string(forKey: "autoPage"), pageURL.isEmpty {
+                mode = .general
+                pageURL = page
+                scan.scan(url: page, render: render, media: media)
             }
         }
         #endif
@@ -105,11 +115,20 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(store.entries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 { Divider().overlay(Color.tLine).padding(.leading, 48) }
-                        NavigationLink(value: entry.id) { HistoryRow(entry: entry) }
-                            .buttonStyle(.plain)
+                        // 버튼(NavigationLink)으로 두면 밀고 손을 뗄 때 같이 눌려서 탭 제스처로 연다
+                        SwipeToDelete(id: entry.id, openID: $swipedID, onDelete: { store.remove(entry.id) }) {
+                            HistoryRow(entry: entry)
+                                .onTapGesture { path.append(entry.id) }
+                                .accessibilityAddTraits(.isButton)
+                                .accessibilityAction { path.append(entry.id) }
+                        }
+                        .transition(.opacity)
                     }
                 }
                 .card(padding: 4)
+                #if os(iOS)
+                Hint(text: "왼쪽으로 밀면 지울 수 있습니다.")
+                #endif
             }
         }
     }
@@ -129,12 +148,27 @@ struct ContentView: View {
         let title = parsed.map { ($0.host() ?? url) + ($0.path() == "/" ? "" : $0.path()) } ?? url
         let entry = store.start(
             mode: .general, title: title,
-            input: CollectInput(
-                url: url, selector: selector.trimmingCharacters(in: .whitespaces), media: media, render: render
-            ),
+            input: CollectInput(url: url, selector: scan.selector(for: media), media: media, render: render),
             folderName: parsed?.host() ?? "toaster"
         )
         path.append(entry.id)
+    }
+
+    /// 앱 초기화: 기록·받아 둔 파일·캐시·설정을 모두 지우고 처음 화면으로
+    private func resetApp() {
+        store.removeAll()
+        Housekeeping.clearEverything()
+        if let bundle = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: bundle) }
+        folder.reset()
+        scan.reset()
+        kakaoInput = ""
+        pageURL = ""
+        render = false
+        media = .image
+        mode = .kakao
+        swipedID = nil
+        path = []
+        showingSettings = false
     }
 }
 
@@ -172,7 +206,7 @@ private struct KakaoForm: View {
                     }
                 }
                 Hint(text: preview.map { "\(Kakao.emoticonURL(slug: $0)) 에서 받습니다." }
-                     ?? "카카오톡 이모티콘샵에서 공유 → 링크 복사 후 붙여넣기를 누르세요.")
+                     ?? "카카오톡 이모티콘샵에서 공유 → 링크 복사 후 오른쪽 붙여넣기 버튼을 누르세요.")
             }
 
             if let error { ErrorBox(message: error) }
@@ -197,16 +231,20 @@ private struct KakaoForm: View {
 
 private struct GeneralForm: View {
     @Binding var pageURL: String
-    @Binding var selector: String
     @Binding var render: Bool
     @Binding var media: Media
+    let scan: PageScan
     let onSubmit: () -> Void
 
-    private enum Field { case url, selector }
-    @FocusState private var focus: Field?
+    @FocusState private var focused: Bool
 
-    private var valid: Bool {
-        URL(string: pageURL)?.scheme?.hasPrefix("http") == true && !selector.trimmingCharacters(in: .whitespaces).isEmpty
+    private var urlValid: Bool {
+        guard let url = URL(string: pageURL.trimmingCharacters(in: .whitespaces)) else { return false }
+        return ["http", "https"].contains(url.scheme?.lowercased()) && url.host() != nil
+    }
+    private var needsScan: Bool { scan.needsScan(url: pageURL, render: render) }
+    private var ready: Bool {
+        urlValid && !scan.selector(for: media).isEmpty && (scan.manual || (!needsScan && scan.phase == .loaded))
     }
 
     var body: some View {
@@ -217,25 +255,14 @@ private struct GeneralForm: View {
                     TextField("https://example.com/page", text: $pageURL)
                         .font(.system(size: 15))
                         .urlInput()
-                        .focused($focus, equals: .url)
-                        .fieldChrome(focused: focus == .url)
-                    PasteLinkButton { pageURL = $0 }
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: "찾을 요소")
-                TextField("img.emoticon, div.thumb img", text: $selector)
-                    .font(.system(size: 14, design: .monospaced))
-                    .plainInput()
-                    .focused($focus, equals: .selector)
-                    .fieldChrome(focused: focus == .selector)
-                Hint(text: "CSS 선택자입니다. 감싸는 요소를 고르면 안쪽 이미지·영상까지 찾습니다.")
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: "받을 종류")
-                PillSegmented(selection: $media, options: [(.image, "이미지"), (.video, "영상"), (.all, "둘 다")])
-                if media != .image {
-                    Hint(text: "영상은 직접 링크된 mp4·mov 등만 받습니다. 스트리밍(m3u8)이나 DRM 영상은 받을 수 없습니다.")
+                        .submitLabel(.search)
+                        .focused($focused)
+                        .onSubmit(scanIfNeeded)
+                        .fieldChrome(focused: focused)
+                    PasteLinkButton { text in
+                        pageURL = text
+                        scanIfNeeded()
+                    }
                 }
             }
             Toggle(isOn: $render) {
@@ -245,14 +272,38 @@ private struct GeneralForm: View {
                 }
             }
             .tint(.tOk)
+            .onChange(of: render) {
+                // 이미 살펴본 페이지면 바뀐 방식으로 다시 살펴본다
+                if scan.phase != .idle, !scan.manual { scanIfNeeded() }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "받을 종류")
+                PillSegmented(selection: $media, options: [(.image, "이미지"), (.video, "영상"), (.all, "둘 다")])
+                if media != .image {
+                    Hint(text: "영상은 직접 링크된 mp4·mov 등만 받습니다. 스트리밍(m3u8)이나 DRM 영상은 받을 수 없습니다.")
+                }
+            }
+            .onChange(of: media) { scan.fitSelection(to: media) }
+
+            ElementPicker(scan: scan, media: media, canScan: urlValid, needsScan: needsScan, onScan: startScan)
 
             Button("가져오기") {
-                focus = nil
+                focused = false
                 onSubmit()
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(!valid)
+            .disabled(!ready)
         }
+    }
+
+    private func scanIfNeeded() {
+        guard urlValid, needsScan, !scan.manual else { return }
+        startScan()
+    }
+
+    private func startScan() {
+        focused = false
+        scan.scan(url: pageURL, render: render, media: media)
     }
 }
 
