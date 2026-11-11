@@ -5,6 +5,10 @@
 //
 // 움직이는 GIF·WEBP 와 영상은 모두 영상 스티커(webm)가 된다. 텔레그램은 움직이는 WEBP 스티커를 받지 않는다.
 // 3초보다 길면 최대 2배까지 빠르게 돌려 맞추고, 그래도 넘치면 앞 3초만 남긴다.
+//
+// 팩 썸네일(https://core.telegram.org/bots/api#setstickersetthumbnail):
+//   정지: PNG(또는 WEBP), 정확히 100x100, 128KB 이하 / 움직이는 것: WEBM(VP9), 100x100, 32KB 이하
+//   비율이 다른 그림은 투명한 여백을 붙여 정사각형으로 만든다.
 import "server-only";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -15,14 +19,26 @@ import sharp, { type Metadata } from "sharp";
 import { sniffType } from "@/lib/sniff";
 
 export const STICKER_SIDE = 512;
-const STATIC_MAX_BYTES = 512 * 1024;
-const VIDEO_MAX_BYTES = 256 * 1024;
 const FPS = 30;
 const MAX_SECONDS = 3;
 const MAX_SPEEDUP = 2;
 const FFMPEG_TIMEOUT_MS = 60_000;
 
 export class StickerError extends Error {}
+
+/** 만들 파일의 규격 */
+interface Spec {
+  /** 긴 변 길이 */
+  side: number;
+  /** true 면 투명 여백을 붙여 정확히 side x side 로 만든다 (썸네일) */
+  square: boolean;
+  staticMaxBytes: number;
+  videoMaxBytes: number;
+}
+
+const STICKER: Spec = { side: STICKER_SIDE, square: false, staticMaxBytes: 512 * 1024, videoMaxBytes: 256 * 1024 };
+const THUMBNAIL: Spec = { side: 100, square: true, staticMaxBytes: 128 * 1024, videoMaxBytes: 32 * 1024 };
+const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
 export interface Sticker {
   bytes: Uint8Array;
@@ -31,26 +47,35 @@ export interface Sticker {
 }
 
 /** 아무 이미지·영상을 텔레그램 스티커 파일 하나로 바꾼다. */
-export async function toTelegramSticker(input: Uint8Array): Promise<Sticker> {
+export function toTelegramSticker(input: Uint8Array): Promise<Sticker> {
+  return convert(input, STICKER);
+}
+
+/** 스티커 팩 썸네일: 정지 그림은 100x100 PNG, 움직이는 GIF·영상은 100x100 WEBM */
+export function toTelegramThumbnail(input: Uint8Array): Promise<Sticker> {
+  return convert(input, THUMBNAIL);
+}
+
+async function convert(input: Uint8Array, spec: Spec): Promise<Sticker> {
   const type = sniffType(input);
   if (!type) throw new StickerError("이미지나 영상이 아닙니다.");
-  if (type.startsWith("video/")) return videoSticker(input);
+  if (type.startsWith("video/")) return videoSticker(input, spec);
 
   const meta = await sharp(input, { animated: true }).metadata().catch(() => null);
   if (!meta) throw new StickerError("이미지를 읽지 못했습니다.");
-  if ((meta.pages ?? 1) > 1) return animatedSticker(input, meta);
-  return staticSticker(input, type === "image/svg+xml");
+  if ((meta.pages ?? 1) > 1) return animatedSticker(input, meta, spec);
+  return staticSticker(input, type === "image/svg+xml", spec);
 }
 
 // ---------------------------------------------------------------- 공통
 
-/** 긴 변을 512 로 맞춘 크기. VP9(yuv420)를 위해 짧은 변은 짝수로 맞춘다. */
-function fitSize(width: number, height: number, even: boolean) {
-  const scale = STICKER_SIDE / Math.max(width, height);
+/** 긴 변을 side 로 맞춘 크기. VP9(yuv420)를 위해 짧은 변은 짝수로 맞춘다. */
+function fitSize(width: number, height: number, even: boolean, side: number) {
+  const scale = side / Math.max(width, height);
   const round = (n: number) => (even ? Math.max(2, Math.round(n / 2) * 2) : Math.max(1, Math.round(n)));
   return width >= height
-    ? { width: STICKER_SIDE, height: Math.min(STICKER_SIDE, round(height * scale)) }
-    : { width: Math.min(STICKER_SIDE, round(width * scale)), height: STICKER_SIDE };
+    ? { width: side, height: Math.min(side, round(height * scale)) }
+    : { width: Math.min(side, round(width * scale)), height: side };
 }
 
 /** 원본 길이(초)로 빠르게 돌릴 배율과 결과 길이를 정한다. */
@@ -61,29 +86,30 @@ function timing(sourceSeconds: number) {
 
 // ---------------------------------------------------------------- 정지 스티커
 
-async function staticSticker(input: Uint8Array, svg: boolean): Promise<Sticker> {
+async function staticSticker(input: Uint8Array, svg: boolean, spec: Spec): Promise<Sticker> {
   // SVG 는 기본 해상도로 그리면 512 로 키울 때 흐려져서 크게 그린다
   const base = sharp(input, svg ? { density: 384 } : {})
     .rotate() // 사진의 EXIF 회전 반영
-    .resize(STICKER_SIDE, STICKER_SIDE, { fit: "inside" })
+    .resize(spec.side, spec.side, spec.square ? { fit: "contain", background: TRANSPARENT } : { fit: "inside" })
     .ensureAlpha();
+  const max = spec.staticMaxBytes;
 
   const png = await base.clone().png({ compressionLevel: 9 }).toBuffer();
-  if (png.byteLength <= STATIC_MAX_BYTES) return { bytes: png, ext: "png", type: "image/png" };
+  if (png.byteLength <= max) return { bytes: png, ext: "png", type: "image/png" };
 
   // 사진처럼 큰 이미지는 팔레트 PNG → WEBP 순으로 줄인다
   const palette = await base.clone().png({ compressionLevel: 9, palette: true, quality: 90 }).toBuffer();
-  if (palette.byteLength <= STATIC_MAX_BYTES) return { bytes: palette, ext: "png", type: "image/png" };
+  if (palette.byteLength <= max) return { bytes: palette, ext: "png", type: "image/png" };
   for (const quality of [90, 80, 70, 55, 40]) {
     const webp = await base.clone().webp({ quality, alphaQuality: 100, effort: 6 }).toBuffer();
-    if (webp.byteLength <= STATIC_MAX_BYTES) return { bytes: webp, ext: "webp", type: "image/webp" };
+    if (webp.byteLength <= max) return { bytes: webp, ext: "webp", type: "image/webp" };
   }
-  throw new StickerError("512KB 이하로 줄이지 못했습니다.");
+  throw new StickerError(`${max / 1024}KB 이하로 줄이지 못했습니다.`);
 }
 
 // ---------------------------------------------------------------- 움직이는 GIF·WEBP
 
-async function animatedSticker(input: Uint8Array, meta: Metadata): Promise<Sticker> {
+async function animatedSticker(input: Uint8Array, meta: Metadata, spec: Spec): Promise<Sticker> {
   const pages = meta.pages ?? 1;
   const pageHeight = meta.pageHeight ?? meta.height ?? 0;
   const srcWidth = meta.width ?? 0;
@@ -109,9 +135,10 @@ async function animatedSticker(input: Uint8Array, meta: Metadata): Promise<Stick
   const order = Array.from({ length: frameCount }, (_, i) => pick((i * 1000 * speed) / FPS));
   const needed = Math.max(...order) + 1; // 3초 뒤 프레임은 아예 풀지 않는다
 
-  const size = fitSize(srcWidth, pageHeight, true);
+  const size = spec.square ? { width: spec.side, height: spec.side } : fitSize(srcWidth, pageHeight, true, spec.side);
+  // 프레임마다 따로 줄여야 썸네일의 투명 여백이 프레임 사이에 생기지 않는다
   const { data } = await sharp(input, { animated: true, pages: needed })
-    .resize(size.width, size.height, { fit: "fill" })
+    .resize(size.width, size.height, spec.square ? { fit: "contain", background: TRANSPARENT } : { fit: "fill" })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -123,30 +150,33 @@ async function animatedSticker(input: Uint8Array, meta: Metadata): Promise<Stick
     ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", `${size.width}x${size.height}`, "-r", String(FPS), "-i", "pipe:0"],
     "format=yuva420p",
     frames.length / FPS,
+    spec.videoMaxBytes,
     frames,
   );
 }
 
 // ---------------------------------------------------------------- 영상
 
-async function videoSticker(input: Uint8Array): Promise<Sticker> {
+async function videoSticker(input: Uint8Array, spec: Spec): Promise<Sticker> {
   const dir = await mkdtemp(join(tmpdir(), "toaster-tg-"));
   try {
     const src = join(dir, "input");
     await writeFile(src, input);
     const probe = await probeVideo(src);
     const { speed, seconds } = timing(probe.seconds || MAX_SECONDS);
-    const size = fitSize(probe.width, probe.height, true);
+    const size = fitSize(probe.width, probe.height, true, spec.side);
     const filter = [
       speed > 1 ? `setpts=PTS/${speed.toFixed(4)}` : null,
       `fps=${FPS}`,
       `scale=${size.width}:${size.height}:flags=lanczos`,
-      "setsar=1",
       "format=yuva420p",
+      // 썸네일은 투명 여백을 붙여 정사각형으로
+      spec.square ? `pad=${spec.side}:${spec.side}:(ow-iw)/2:(oh-ih)/2:color=black@0` : null,
+      "setsar=1",
     ]
       .filter(Boolean)
       .join(",");
-    return await encodeWebm(["-i", src], filter, seconds);
+    return await encodeWebm(["-i", src], filter, seconds, spec.videoMaxBytes);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -171,16 +201,22 @@ async function probeVideo(path: string) {
 // ---------------------------------------------------------------- VP9 인코딩
 
 /**
- * 256KB 안에 들어올 때까지 비트레이트를 낮추며 VP9 webm 으로 굽는다.
+ * maxBytes 안에 들어올 때까지 비트레이트를 낮추며 VP9 webm 으로 굽는다.
  * frames 가 있으면 매번 표준 입력으로 다시 흘려 넣는다.
  */
-async function encodeWebm(input: string[], filter: string, seconds: number, frames?: Buffer[]): Promise<Sticker> {
+async function encodeWebm(
+  input: string[],
+  filter: string,
+  seconds: number,
+  maxBytes: number,
+  frames?: Buffer[],
+): Promise<Sticker> {
   const dir = await mkdtemp(join(tmpdir(), "toaster-tg-"));
   try {
     const out = join(dir, "out.webm");
     // 컨테이너 몫을 조금 남긴 목표 비트레이트
-    let kbps = Math.floor((VIDEO_MAX_BYTES * 8 * 0.92) / Math.max(seconds, 0.5) / 1000);
-    for (let attempt = 0; attempt < 6; attempt++) {
+    let kbps = Math.floor((maxBytes * 8 * 0.92) / Math.max(seconds, 0.5) / 1000);
+    for (let attempt = 0; attempt < 8; attempt++) {
       await runFfmpeg(
         [
           "-hide_banner", "-loglevel", "error", "-y",
@@ -202,10 +238,10 @@ async function encodeWebm(input: string[], filter: string, seconds: number, fram
         frames,
       );
       const bytes = await readFile(out);
-      if (bytes.byteLength <= VIDEO_MAX_BYTES) return { bytes, ext: "webm", type: "video/webm" };
-      kbps = Math.max(30, Math.floor(kbps * (VIDEO_MAX_BYTES / bytes.byteLength) * 0.85));
+      if (bytes.byteLength <= maxBytes) return { bytes, ext: "webm", type: "video/webm" };
+      kbps = Math.max(10, Math.floor(kbps * (maxBytes / bytes.byteLength) * 0.85));
     }
-    throw new StickerError("256KB 이하로 줄이지 못했습니다.");
+    throw new StickerError(`${maxBytes / 1024}KB 이하로 줄이지 못했습니다.`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

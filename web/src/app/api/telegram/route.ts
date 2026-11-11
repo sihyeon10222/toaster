@@ -1,8 +1,9 @@
 // 이미지·GIF·영상 하나를 받아 텔레그램 스티커 규격(PNG/WEBP 512px 또는 VP9 WEBM 3초·256KB)으로 바꿔 돌려준다.
+// ?thumb=1 이면 스티커 팩 썸네일(100x100 PNG 또는 WEBM 32KB)로 바꾼다.
 // 변환에 ffmpeg 와 sharp 가 필요해서 브라우저가 아니라 여기서 한다. 원본은 브라우저가 올리지 않고 주소로 다시 받는다
 // (Vercel 함수는 요청 본문이 4.5MB 로 제한돼 큰 영상을 올릴 수 없다).
 import { FetchError, readLimited, safeFetch } from "@/lib/server/safe-fetch";
-import { StickerError, toTelegramSticker } from "@/lib/server/telegram";
+import { StickerError, toTelegramSticker, toTelegramThumbnail } from "@/lib/server/telegram";
 
 export const maxDuration = 120;
 
@@ -12,15 +13,18 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const url = params.get("url");
   const referer = params.get("referer") ?? undefined;
+  const thumb = params.get("thumb") === "1";
   if (!url) return Response.json({ error: "url 이 필요합니다." }, { status: 400 });
 
   try {
     const source = await readLimited(await safeFetch(url, { referer }), MAX_SOURCE_BYTES);
-    const sticker = await toTelegramSticker(source);
+    const sticker = await (thumb ? toTelegramThumbnail : toTelegramSticker)(source);
     return new Response(sticker.bytes as BodyInit, {
       headers: {
         "Content-Type": sticker.type,
         "X-Sticker-Ext": sticker.ext,
+        // 앱이 예전 서버(썸네일을 모르는 서버)와 구분할 수 있게 무엇을 만들었는지 알려 준다
+        "X-Sticker-Kind": thumb ? "thumbnail" : "sticker",
         "Cache-Control": "public, max-age=86400",
         "X-Content-Type-Options": "nosniff",
       },
