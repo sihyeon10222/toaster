@@ -1,5 +1,5 @@
 // 카카오 이모티콘샵 프리셋.
-// 페이지가 JS로 그려지므로 서버의 render 옵션(Chromium)이 필요하다.
+// 이모티콘 목록은 페이지 HTML 에 그대로 들어 있어 브라우저로 렌더링할 필요가 없다.
 
 export const KAKAO_EMOTICON_BASE = "https://e.kakao.com/t/";
 // 이모티콘 상세 페이지의 이모티콘 목록. 카카오가 페이지를 개편하면 바꿔야 한다.

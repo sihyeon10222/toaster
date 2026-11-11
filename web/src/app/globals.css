@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------- 색 토큰
+   카카오톡 노란색(#FEE500) 포인트 하나. 노란 바탕 위 글자는 거의 검정(#191919). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #efefec;
+  --ink: #191919;
+  --muted: #767676;
+  --line: rgb(25 25 25 / 0.09);
+  --line-strong: rgb(25 25 25 / 0.16);
+  --accent: #fee500;
+  --accent-ink: #191919;
+  --danger: #d92d20;
+  --ok: #12a150;
+  --checker: #f0f0ee;
+  --shadow: 0 1px 2px rgb(25 25 25 / 0.05), 0 4px 16px -6px rgb(25 25 25 / 0.08);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #121212;
+    --surface: #1c1c1c;
+    --surface-2: #272727;
+    --ink: #f2f2f2;
+    --muted: #9a9a9a;
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.16);
+    --accent: #fee500;
+    --accent-ink: #191919;
+    --danger: #f97066;
+    --ok: #4ade80;
+    --checker: #242424;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, "Apple SD Gothic Neo", sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+  --shadow-card: var(--shadow);
+}
+
+html {
+  background: var(--bg);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Pretendard Variable", Pretendard, system-ui, "Apple SD Gothic Neo", sans-serif;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* 노란색은 흰 바탕에서 테두리로는 잘 안 보여서, 포커스는 진한 글자색 테두리 + 노란 번짐으로 표시 */
+
+/* 투명 이미지가 잘 보이게 체크무늬 */
+.checker {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* ---------------------------------------------------------------- 움직임 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.animate-fade-in { animation: fade-in 0.3s ease-out both; }
+.animate-indeterminate { animation: indeterminate 1.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-indeterminate { animation: none; }
 }
