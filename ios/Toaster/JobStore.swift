@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 enum Mode: String, CaseIterable, Identifiable {
-    case kakao, general
+    // 탭 순서: 일반 페이지, 카카오 이모티콘
+    case general, kakao
     var id: Self { self }
     var title: String { self == .kakao ? "카카오 이모티콘" : "일반 페이지" }
 }
@@ -11,17 +12,23 @@ enum Mode: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class JobEntry: Identifiable {
-    let id = UUID().uuidString
+    let id: String
     let mode: Mode
     /// 기록 제목 (이모티콘 끝주소 또는 페이지 주소)
     let title: String
     /// 저장 폴더 안에 만들 폴더 이름 (카카오는 끝주소, 일반은 사이트 주소. - 는 _ 로 바꾼다)
     let folderName: String
-    let startedAt = Date()
+    /// 받을 페이지 주소
+    let url: String
+    let startedAt: Date
     let model = JobModel()
     fileprivate var task: Task<Void, Never>?
 
-    init(mode: Mode, title: String, folderName: String) {
+    init(mode: Mode, title: String, folderName: String, url: String,
+         id: String = UUID().uuidString, startedAt: Date = .now) {
+        self.id = id
+        self.startedAt = startedAt
+        self.url = url
         self.mode = mode
         self.title = title
         // 폴더 이름에는 - 대신 _ 를 쓴다 (kakao-friends-classic → kakao_friends_classic, 웹 zip 이름과 같은 규칙)
@@ -55,14 +62,33 @@ final class JobStore {
     private static let maxEntries = 12
     var entries: [JobEntry] = []
 
+    /// 앱을 켤 때 지난번 기록을 불러온다
+    init() {
+        entries = History.load()
+        entries.forEach(watch)
+    }
+
+    /// 지금 기록을 기기에 남긴다
+    func persist() { History.save(entries) }
+
+    private func watch(_ entry: JobEntry) {
+        entry.model.onChange = { [weak self] in self?.persist() }
+    }
+
     func entry(_ id: String) -> JobEntry? { entries.first { $0.id == id } }
 
     @discardableResult
     func start(mode: Mode, title: String, input: CollectInput, folderName: String) -> JobEntry {
-        let entry = JobEntry(mode: mode, title: title, folderName: folderName)
+        let entry = JobEntry(mode: mode, title: title, folderName: folderName, url: input.url)
+        watch(entry)
         entries.insert(entry, at: 0)
         if entries.count > Self.maxEntries { discard(entries.removeLast()) }
-        entry.task = Task { await entry.model.start(input) }
+        entry.task = Task { [weak self] in
+            await entry.model.start(input)
+            // 끝난 작업을 기록에 남긴다 (지운 작업이면 이미 목록에 없어서 남지 않는다)
+            self?.persist()
+        }
+        persist()
         return entry
     }
 
@@ -70,18 +96,23 @@ final class JobStore {
     func remove(_ id: String) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         discard(entries.remove(at: index))
+        persist()
     }
 
     func removeAll() {
         let old = entries
         entries = []
         old.forEach(discard)
+        persist()
     }
 
     /// 지금 기록에 남아 있는 작업들이 쓰는 임시 폴더 (캐시 삭제 때 건드리지 않는다)
     var liveFolders: Set<URL> {
-        Set(entries.flatMap { $0.model.job?.images.map { $0.fileURL.deletingLastPathComponent().standardizedFileURL } ?? [] })
+        Set(entries.compactMap { $0.model.job?.folder?.standardizedFileURL })
     }
+
+    /// 받는 중이거나 스티커로 바꾸는 중인 작업이 있다 (이때는 sticker- 임시 폴더도 지우지 않는다)
+    var anyBusy: Bool { entries.contains { $0.model.busy } }
 
     /// 기록에 남은 작업들이 받아 둔 파일 크기 합
     var downloadedBytes: Int {
@@ -89,8 +120,8 @@ final class JobStore {
     }
 
     private func discard(_ entry: JobEntry) {
+        entry.model.onChange = nil
         entry.task?.cancel()
-        let folders = Set(entry.model.job?.images.map { $0.fileURL.deletingLastPathComponent() } ?? [])
-        for folder in folders { try? FileManager.default.removeItem(at: folder) }
+        if let folder = entry.model.job?.folder { try? FileManager.default.removeItem(at: folder) }
     }
 }
