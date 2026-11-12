@@ -2,6 +2,7 @@
 // 선택자를 모르는 사람도 미리보기를 보고 고를 수 있게 한다. (iOS 앱은 기기 안에서 같은 일을 한다)
 import { scanElements, type ElementGroup } from "@/lib/server/extract";
 import { INSTAGRAM_IMAGES, INSTAGRAM_VIDEOS, instagramItems } from "@/lib/server/instagram";
+import { STREAM_TOKEN, isPlaylist, streamUrlsInPage } from "@/lib/hls-urls";
 import { loadPage } from "@/lib/server/page";
 import { FetchError } from "@/lib/server/safe-fetch";
 
@@ -37,7 +38,19 @@ export async function GET(request: Request) {
       }
       return Response.json({ url: finalUrl, groups });
     }
-    return Response.json({ url: finalUrl, groups: scanElements(html, finalUrl) });
+    const stream = (count: number, label: string): ElementGroup => ({
+      selector: STREAM_TOKEN, isVideo: true, count, previews: [], isEverything: false, label,
+    });
+    // 붙여 넣은 주소가 .m3u8 재생 목록이면 그 영상 하나
+    if (isPlaylist(html.slice(0, 64))) return Response.json({ url: finalUrl, groups: [stream(1, "스트리밍 영상 (m3u8)")] });
+    const groups = scanElements(html, finalUrl);
+    // 자바스크립트 플레이어가 쓰는 스트리밍 영상(.m3u8) 주소가 페이지에 있으면 따로 한 묶음
+    const streams = streamUrlsInPage(html).length;
+    if (streams > 0) {
+      const everything = groups.filter((g) => g.isEverything).length;
+      groups.splice(everything, 0, stream(streams, "페이지 속 스트리밍 영상 (m3u8)"));
+    }
+    return Response.json({ url: finalUrl, groups });
   } catch (e) {
     if (e instanceof FetchError) return Response.json({ error: e.message }, { status: e.status });
     console.error(e);

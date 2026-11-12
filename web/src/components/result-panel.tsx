@@ -278,7 +278,7 @@ export function ResultPanel({
               {job && job.total > 0 ? (
                 <div
                   className="h-full rounded-full bg-ink transition-[width] duration-300"
-                  style={{ width: `${(job.processed / job.total) * 100}%` }}
+                  style={{ width: `${(Math.min(job.processed + (job.stream?.fraction ?? 0), job.total) / job.total) * 100}%` }}
                 />
               ) : (
                 <div className="animate-indeterminate absolute inset-y-0 w-2/5 rounded-full bg-ink" />
@@ -286,7 +286,9 @@ export function ResultPanel({
             </div>
             {job && job.total > 0 && (
               <span className="text-[13px] text-muted tabular-nums">
-                {job.processed} / {job.total}
+                {job.stream && job.stream.total > 0
+                  ? `영상 조각 ${job.stream.done} / ${job.stream.total}`
+                  : `${job.processed} / ${job.total}`}
               </span>
             )}
           </div>

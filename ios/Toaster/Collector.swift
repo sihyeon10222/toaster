@@ -8,7 +8,7 @@ import WebKit
 // → 파일 받기 → 실제 형식 판별·중복 제거. 서버가 필요 없다. (웹의 lib/collect.ts 와 같은 흐름)
 // 저장은 SaveFolder 가 고른 폴더에 파일 그대로 한다.
 
-/// 받을 종류. video 는 직접 링크된 mp4/mov 등만 (스트리밍·DRM 미지원)
+/// 받을 종류. video 는 직접 링크된 mp4/mov 등과 스트리밍(m3u8) 영상 (DRM 은 받지 않는다)
 enum Media: String, CaseIterable, Sendable {
     case image, video, all
 }
@@ -59,6 +59,28 @@ struct Job: Sendable {
     var error: String?
     /// 받은 파일을 넣는 임시 폴더 (받는 중에도 캐시 삭제가 건드리지 않게 기록한다)
     var folder: URL?
+    /// 스트리밍 영상(m3u8)을 받는 중이면 조각 진행 상황
+    var stream: StreamProgress?
+
+    /// 진행 막대 값 (0…total). 스트리밍 영상은 받은 조각만큼 조금씩 찬다.
+    @MainActor var progress: Double { Double(processed) + (stream?.fraction ?? 0) }
+}
+
+/// 스트리밍 영상 조각 진행 상황 (파일 번호마다 끝낸 조각, 전체 조각)
+@MainActor
+@Observable
+final class StreamProgress {
+    private var parts: [Int: (done: Int, total: Int)] = [:]
+
+    nonisolated init() {}
+
+    func set(_ index: Int, done: Int, total: Int) { parts[index] = (done, total) }
+    func finish(_ index: Int) { parts[index] = nil }
+
+    var done: Int { parts.values.reduce(0) { $0 + $1.done } }
+    var total: Int { parts.values.reduce(0) { $0 + $1.total } }
+    /// 아직 끝나지 않은 영상들이 받은 몫의 합
+    var fraction: Double { parts.values.reduce(0) { $0 + ($1.total > 0 ? Double($1.done) / Double($1.total) : 0) } }
 }
 
 struct CollectError: LocalizedError {
@@ -85,12 +107,18 @@ enum Collector {
         do {
             let (html, finalURL) = try await loadPage(input.url, render: input.render)
             // 인스타그램 게시물에서 "게시물의 사진/영상" 을 골랐으면 퍼가기 페이지의 데이터를 그대로 쓴다
-            let found: (urls: [URL], title: String)
+            var found: (urls: [URL], title: String)
             if Instagram.code(input.url) != nil, Instagram.isToken(input.selector) {
                 let ig = Instagram.items(html: html)
                 found = (Instagram.pick(ig.items, selector: input.selector), ig.title)
             } else {
-                found = try extract(html: html, pageURL: finalURL, selector: input.selector)
+                // "스트리밍 영상" 묶음을 골랐으면 페이지 속 .m3u8 주소(또는 붙여 넣은 .m3u8 주소 자체)를 더한다
+                let (css, streams) = HLS.split(input.selector)
+                found = css.isEmpty ? ([], pageTitle(html)) : try extract(html: html, pageURL: finalURL, selector: css)
+                if streams {
+                    for url in streamURLs(html: html, pageURL: finalURL) where !found.urls.contains(url) { found.urls.append(url) }
+                    if found.title.isEmpty { found.title = finalURL.deletingPathExtension().lastPathComponent }
+                }
             }
             pageURL = finalURL
             urls = found.urls
@@ -118,6 +146,8 @@ enum Collector {
         let folder = History.jobsRoot.appending(path: "toaster-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         job.folder = folder
+        let stream = StreamProgress()
+        job.stream = stream
         job.status = .downloading
         job.total = urls.count
         await update(job)
@@ -126,13 +156,21 @@ enum Collector {
         var looks = [ImageLook?](repeating: nil, count: urls.count)
         var seen = Set<String>()
 
-        await withTaskGroup(of: (Int, Result<(Data, String), Error>).self) { group in
+        await withTaskGroup(of: (Int, Result<Downloaded, Error>).self) { group in
             var next = 0
             func addNext() {
                 guard next < urls.count else { return }
                 let index = next, url = urls[index]
                 next += 1
-                group.addTask { (index, await Result { try await download(url, referer: pageURL) }) }
+                group.addTask {
+                    let result = await Result {
+                        try await download(url, referer: pageURL) { done, total in
+                            await stream.set(index, done: done, total: total)
+                        }
+                    }
+                    await stream.finish(index)
+                    return (index, result)
+                }
             }
             for _ in 0..<concurrency { addNext() }
 
@@ -142,23 +180,30 @@ enum Collector {
                     continue
                 }
                 switch result {
-                case .success(let (data, type)):
-                    let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                case .success(let got):
+                    let type = got.type
+                    let bytes = got.data ?? got.file.flatMap { try? Data(contentsOf: $0, options: .alwaysMapped) } ?? Data()
+                    let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
                     // 고르지 않은 종류이거나, 같은 파일이 다른 주소로 또 나온 경우는 조용히 건너뛴다
-                    if wanted(type, input.media), !seen.contains(hash) {
+                    if wanted(type, input.media), !seen.contains(hash), !bytes.isEmpty {
                         seen.insert(hash)
                         let name = String(format: "%0\(width)d", index + 1) + (extByType[type] ?? "")
                         let file = folder.appending(path: name)
                         do {
-                            try data.write(to: file)
+                            if let source = got.file {
+                                try FileManager.default.moveItem(at: source, to: file)
+                            } else {
+                                try bytes.write(to: file)
+                            }
                             results[index] = CollectedFile(
-                                filename: name, fileURL: file, sourceURL: urls[index], contentType: type, size: data.count
+                                filename: name, fileURL: file, sourceURL: urls[index], contentType: type, size: bytes.count
                             )
-                            if type.hasPrefix("image/") { looks[index] = ImageLook(data) }
+                            if type.hasPrefix("image/") { looks[index] = ImageLook(bytes) }
                         } catch {
                             job.errors.append("\(urls[index].absoluteString): 저장 실패")
                         }
                     }
+                    if let source = got.file { try? FileManager.default.removeItem(at: source) }
                 case .failure(let error):
                     job.errors.append("\(urls[index].absoluteString): \(error.localizedDescription)")
                 }
@@ -183,7 +228,10 @@ enum Collector {
         job.images = results.compactMap { $0 }
         if job.images.isEmpty {
             job.status = .failed
-            job.error = "받은 파일이 없습니다."
+            // 하나만 받으려다 실패했으면 그 이유를 그대로 (예: 실시간 방송, DRM)
+            job.error = job.errors.count == 1
+                ? job.errors[0].components(separatedBy: ": ").dropFirst().joined(separator: ": ")
+                : "받은 파일이 없습니다."
         } else {
             job.status = .done
         }
@@ -192,7 +240,7 @@ enum Collector {
 
     // MARK: 페이지
 
-    private static func request(_ url: URL, referer: URL? = nil) -> URLRequest {
+    static func request(_ url: URL, referer: URL? = nil) -> URLRequest {
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("ko,en;q=0.8", forHTTPHeaderField: "Accept-Language")
@@ -207,6 +255,8 @@ enum Collector {
         else { throw CollectError(message: "http 또는 https 주소를 넣어 주세요.") }
         // 인스타그램 게시물·릴스는 로그인 없이 볼 수 있는 퍼가기 페이지를 대신 읽는다
         if let code = Instagram.code(address) { return try await fetchHTML(Instagram.embedURL(code)) }
+        // .m3u8 주소는 웹뷰로 열면 재생이 시작되므로 언제나 그냥 받는다
+        if url.pathExtension.lowercased() == "m3u8" { return try await fetchHTML(url) }
         return render ? try await PageRenderer.render(url) : try await fetchHTML(url)
     }
 
@@ -227,7 +277,7 @@ enum Collector {
         return (text, response.url ?? url)
     }
 
-    private static func load(_ req: URLRequest) async throws -> (Data, URLResponse) {
+    static func load(_ req: URLRequest) async throws -> (Data, URLResponse) {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: req)
@@ -247,11 +297,44 @@ enum Collector {
         return (data, response)
     }
 
-    private static func download(_ url: URL, referer: URL) async throws -> (Data, String) {
-        let (data, _) = try await load(request(url, referer: referer))
+    /// 받은 파일 하나. 보통은 메모리(data)에, 스트리밍 영상은 크기가 커서 임시 파일(file)에 둔다.
+    struct Downloaded: Sendable {
+        let type: String
+        var data: Data?
+        var file: URL?
+    }
+
+    private static func download(
+        _ url: URL, referer: URL, progress: @escaping @Sendable (Int, Int) async -> Void
+    ) async throws -> Downloaded {
+        let (data, response) = try await load(request(url, referer: referer))
+        // 스트리밍 영상(m3u8): 조각을 모두 받아 mp4 한 파일로 만든다
+        if HLS.isPlaylist(data) {
+            let out = FileManager.default.temporaryDirectory.appending(path: "hls-\(UUID().uuidString).mp4")
+            do {
+                try await HLS.download(response.url ?? url, first: data, referer: referer, to: out, progress: progress)
+            } catch {
+                try? FileManager.default.removeItem(at: out)
+                throw error
+            }
+            return Downloaded(type: "video/mp4", file: out)
+        }
         guard data.count <= maxFileBytes else { throw CollectError(message: "파일이 너무 큽니다") }
         guard let type = sniffType(data) else { throw CollectError(message: "이미지나 영상이 아닙니다") }
-        return (data, type)
+        return Downloaded(type: type, data: data)
+    }
+
+    /// 페이지 속 스트리밍 영상 주소. 받은 것이 재생 목록 자체면 그 주소 하나.
+    static func streamURLs(html: String, pageURL: URL) -> [URL] {
+        HLS.isPlaylist(Data(html.utf8.prefix(64))) ? [pageURL] : HLS.urls(inPage: html, pageURL: pageURL)
+    }
+
+    /// 페이지 제목 ("카카오프렌즈 클래식 | 카카오 이모티콘샵" → "카카오프렌즈 클래식")
+    static func pageTitle(_ html: String) -> String {
+        guard let doc = try? SwiftSoup.parse(html) else { return "" }
+        let raw = (try? doc.select("meta[property=og:title]").first()?.attr("content")).flatMap { $0.isEmpty ? nil : $0 }
+            ?? (try? doc.title()) ?? ""
+        return raw.components(separatedBy: " | ").first?.trimmingCharacters(in: .whitespaces) ?? ""
     }
 
     // MARK: 선택자 (예전 서버 scraper.extract_media_urls 와 같은 규칙)
@@ -453,6 +536,8 @@ extension Collector {
     /// 묶음마다 만든 선택자를 실제 받기와 같은 규칙(mediaURLs)으로 다시 돌려 개수·미리보기를 정확히 맞춘다.
     static func scanElements(html: String, pageURL: URL, instagram: Bool = false) throws -> [ElementGroup] {
         if instagram { return try instagramGroups(html) }
+        // 붙여 넣은 주소가 .m3u8 재생 목록이면 그 영상 하나
+        if HLS.isPlaylist(Data(html.utf8.prefix(64))) { return [streamGroup(count: 1, label: "스트리밍 영상 (m3u8)")] }
         let doc = try SwiftSoup.parse(html, pageURL.absoluteString)
         let base = baseURL(doc, pageURL)
 
@@ -514,7 +599,14 @@ extension Collector {
         let ordered = specific.enumerated().sorted { a, b in
             a.element.count != b.element.count ? a.element.count > b.element.count : a.offset < b.offset
         }.map(\.element)
+        // 자바스크립트 플레이어가 쓰는 스트리밍 영상(.m3u8) 주소가 페이지에 있으면 따로 한 묶음
+        let streams = HLS.urls(inPage: html, pageURL: pageURL).count
+        if streams > 0 { result.append(streamGroup(count: streams, label: "페이지 속 스트리밍 영상 (m3u8)")) }
         return result + ordered.prefix(maxGroups)
+    }
+
+    private static func streamGroup(count: Int, label: String) -> ElementGroup {
+        ElementGroup(selector: HLS.token, isVideo: true, count: count, previews: [], isEverything: false, label: label)
     }
 
     /// 인스타그램은 게시물 안의 사진·영상을 두 묶음으로 보여 준다

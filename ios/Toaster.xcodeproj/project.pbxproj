@@ -12,6 +12,7 @@
 		270EDF11E7B3F3DCBFBB26E5 /* Sticker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */; };
 		2CD70288C384DE12DD2284CC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4DABD7322224B36EB1794A4 /* Theme.swift */; };
 		575A972B9227031E2538CCBD /* JobModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4E2E00AA3468779893311F /* JobModel.swift */; };
+		597EBC9972EB9A49EBE3FB31 /* mux.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 7DCD4E7FAA71A2632AF9C60C /* mux.min.js */; };
 		67A03740750FFCAB52C73E05 /* History.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28D64C71F6394894E101974 /* History.swift */; };
 		7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A437F66E13BDD515F596FD /* ElementPicker.swift */; };
 		8307A6DCB08A094B83C205BD /* SaveFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA609ED4C52C0A98C704F350 /* SaveFolder.swift */; };
@@ -28,6 +29,7 @@
 		D60D5C44650DBF4D7711D2DE /* AnimatedImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98D5C18AA5C3B03AD3BA6D1 /* AnimatedImage.swift */; };
 		DBCD7A53DB6DEE8955AFE8F9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4877189372FC87F5BD44DED /* Assets.xcassets */; };
 		DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC349D0D6C30A9FE713EA42 /* ContentView.swift */; };
+		E197AA51003690C6497987E2 /* HLS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D41B3FBC907A04C444373F9 /* HLS.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,7 +41,9 @@
 		35BDEAC49434AA8F7BD0F5BC /* Sticker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sticker.swift; sourceTree = "<group>"; };
 		3715C7AAE9062BAE846B5D88 /* Instagram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instagram.swift; sourceTree = "<group>"; };
 		385A511C0DAE2338271FAEB1 /* ImageLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLook.swift; sourceTree = "<group>"; };
+		3D41B3FBC907A04C444373F9 /* HLS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HLS.swift; sourceTree = "<group>"; };
 		72710542F750FE44A2A04466 /* Toaster.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Toaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7DCD4E7FAA71A2632AF9C60C /* mux.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mux.min.js; sourceTree = "<group>"; };
 		8221D664D5D8214EDFCC4156 /* ToasterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToasterApp.swift; sourceTree = "<group>"; };
 		9D9459702A434793819F0023 /* Collector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collector.swift; sourceTree = "<group>"; };
 		A4A437F66E13BDD515F596FD /* ElementPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementPicker.swift; sourceTree = "<group>"; };
@@ -67,6 +71,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		15EE63C26036CAB7DAAF17B4 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7DCD4E7FAA71A2632AF9C60C /* mux.min.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		541D83F897F683271028A77B = {
 			isa = PBXGroup;
 			children = (
@@ -92,6 +104,7 @@
 				DCC349D0D6C30A9FE713EA42 /* ContentView.swift */,
 				A4A437F66E13BDD515F596FD /* ElementPicker.swift */,
 				C28D64C71F6394894E101974 /* History.swift */,
+				3D41B3FBC907A04C444373F9 /* HLS.swift */,
 				BDBBE3B4E66E31A4ADF947B9 /* Housekeeping.swift */,
 				385A511C0DAE2338271FAEB1 /* ImageLook.swift */,
 				09B16E5AF26E59672631FCB2 /* Info.plist */,
@@ -107,6 +120,7 @@
 				F78D0CDD4140C4A058C1A781 /* SVGRenderer.swift */,
 				B4DABD7322224B36EB1794A4 /* Theme.swift */,
 				8221D664D5D8214EDFCC4156 /* ToasterApp.swift */,
+				15EE63C26036CAB7DAAF17B4 /* Resources */,
 			);
 			path = Toaster;
 			sourceTree = "<group>";
@@ -177,6 +191,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DBCD7A53DB6DEE8955AFE8F9 /* Assets.xcassets in Resources */,
+				597EBC9972EB9A49EBE3FB31 /* mux.min.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,6 +206,7 @@
 				ACD51C3ACF1F984D4849F35C /* Collector.swift in Sources */,
 				DBDBE7D658D7C2B815D3FE13 /* ContentView.swift in Sources */,
 				7548B6C7DEE8A01F756ED3A8 /* ElementPicker.swift in Sources */,
+				E197AA51003690C6497987E2 /* HLS.swift in Sources */,
 				67A03740750FFCAB52C73E05 /* History.swift in Sources */,
 				09450940723E8EBB82047562 /* Housekeeping.swift in Sources */,
 				BFB10AF38E7B1C6987A426EE /* ImageLook.swift in Sources */,

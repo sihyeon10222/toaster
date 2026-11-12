@@ -132,7 +132,8 @@ function mediaUrls($: cheerio.CheerioAPI, base: string, selector: string): strin
 
 export function extractMedia(html: string, pageUrl: string, selector: string) {
   const { $, base } = load(html, pageUrl);
-  const urls = mediaUrls($, base, selector);
+  // 선택자 없이 부르면 제목만 (스트리밍 영상만 고른 경우)
+  const urls = selector ? mediaUrls($, base, selector) : [];
   // "카카오프렌즈 클래식 | 카카오 이모티콘샵" → "카카오프렌즈 클래식"
   const title = $("meta[property='og:title']").attr("content") || $("title").first().text() || "";
   return { urls, title: title.split(" | ")[0].trim() };

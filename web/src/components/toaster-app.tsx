@@ -72,7 +72,9 @@ function HistoryItem({
     : job.status === "failed"
       ? job.error ?? "실패"
       : running
-        ? job.total > 0
+        ? job.stream && job.stream.total > 0
+          ? `받는 중 · 영상 조각 ${job.stream.done}/${job.stream.total}`
+          : job.total > 0
           ? `받는 중 ${job.processed}/${job.total}`
           : "페이지 분석 중"
         : `${job.images.length}개 · ${formatBytes(job.images.reduce((s, f) => s + f.size, 0))}`;

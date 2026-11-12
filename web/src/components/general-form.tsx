@@ -98,7 +98,7 @@ export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => v
         />
         {media !== "image" && (
           <span className={hintText}>
-            영상은 직접 링크된 mp4·webm·mov만 받습니다. 스트리밍(m3u8)이나 DRM 영상은 받을 수 없습니다.
+            영상은 직접 링크된 mp4·webm·mov와 스트리밍(m3u8) 영상을 받습니다. .m3u8 주소를 바로 넣어도 됩니다. DRM 이 걸린 영상은 받을 수 없습니다.
           </span>
         )}
       </div>

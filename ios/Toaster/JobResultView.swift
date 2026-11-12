@@ -121,8 +121,9 @@ struct JobResultView: View {
     private var progress: some View {
         HStack(spacing: 12) {
             if let job, job.total > 0 {
-                ProgressView(value: Double(job.processed), total: Double(job.total))
-                Text("\(job.processed) / \(job.total)")
+                ProgressView(value: min(job.progress, Double(job.total)), total: Double(job.total))
+                Text(job.stream.flatMap { $0.total > 0 ? "영상 조각 \($0.done) / \($0.total)" : nil }
+                     ?? "\(job.processed) / \(job.total)")
                     .font(.footnote)
                     .monospacedDigit()
                     .foregroundStyle(Color.tMuted)

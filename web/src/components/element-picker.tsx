@@ -277,7 +277,10 @@ function GroupRow({
             group.previews.map((u) => <PreviewTile key={u} url={u} referer={referer} isVideo={group.isVideo} />)
           )}
         </span>
-        {!group.isEverything && <span className="truncate font-mono text-xs text-muted">{group.selector}</span>}
+        {/* 이름이 붙은 묶음(스트리밍 영상 등)은 이름표라서 선택자를 보여 주지 않는다 */}
+        {!group.isEverything && !group.label && (
+          <span className="truncate font-mono text-xs text-muted">{group.selector}</span>
+        )}
       </span>
     </button>
   );

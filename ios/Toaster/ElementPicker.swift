@@ -237,7 +237,8 @@ private struct GroupRow: View {
                             PreviewTile(url: url, referer: referer, isVideo: group.isVideo)
                         }
                     }
-                    if !group.isEverything {
+                    // 이름이 붙은 묶음(스트리밍 영상 등)은 이름표라서 선택자를 보여 주지 않는다
+                    if !group.isEverything, group.label == nil {
                         Text(group.selector)
                             .font(.caption.monospaced())
                             .foregroundStyle(Color.tMuted)

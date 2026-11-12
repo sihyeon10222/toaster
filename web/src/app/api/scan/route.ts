@@ -2,6 +2,7 @@
 // 브라우저는 다른 사이트(카카오 등)의 HTML 을 직접 읽을 수 없어서(CORS) 여기서 대신 읽는다.
 import { SelectorError, extractMedia } from "@/lib/server/extract";
 import { INSTAGRAM_IMAGES, INSTAGRAM_VIDEOS, instagramItems, pickInstagram } from "@/lib/server/instagram";
+import { splitStreamToken, streamUrls } from "@/lib/hls-urls";
 import { loadPage } from "@/lib/server/page";
 import { FetchError } from "@/lib/server/safe-fetch";
 
@@ -18,8 +19,12 @@ export async function GET(request: Request) {
       const { items, title } = instagramItems(html);
       return Response.json({ url: finalUrl, title, urls: pickInstagram(items, selector) });
     }
-    const { urls, title } = extractMedia(html, finalUrl, selector);
-    return Response.json({ url: finalUrl, title, urls });
+    // "스트리밍 영상" 묶음을 골랐으면 페이지 속 .m3u8 주소(또는 붙여 넣은 .m3u8 주소 자체)를 더한다
+    const { css, streams } = splitStreamToken(selector);
+    const { urls, title } = extractMedia(html, finalUrl, css);
+    if (streams) for (const u of streamUrls(html, finalUrl)) if (!urls.includes(u)) urls.push(u);
+    const name = title || (streams ? (new URL(finalUrl).pathname.split("/").pop() ?? "").replace(/\.m3u8$/i, "") : "");
+    return Response.json({ url: finalUrl, title: name, urls });
   } catch (e) {
     if (e instanceof FetchError) return Response.json({ error: e.message }, { status: e.status });
     if (e instanceof SelectorError) return Response.json({ error: e.message }, { status: 400 });

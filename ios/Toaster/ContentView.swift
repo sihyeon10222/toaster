@@ -74,6 +74,16 @@ struct ContentView: View {
                 pageURL = page
                 scan.scan(url: page, render: render, media: media) { media = $0 }
             }
+            // `-autoStream <주소>` 는 그 주소의 스트리밍 영상(m3u8)을 바로 받는다
+            if let page = UserDefaults.standard.string(forKey: "autoStream"), store.entries.allSatisfy({ $0.url != page }) {
+                mode = .general
+                pageURL = page
+                let entry = store.start(
+                    mode: .general, title: page,
+                    input: CollectInput(url: page, selector: HLS.token, media: .all), folderName: "stream"
+                )
+                path.append(entry.id)
+            }
         }
         #endif
     }
@@ -267,7 +277,7 @@ private struct GeneralForm: View {
             Text("받을 종류")
         } footer: {
             if media != .image {
-                Text("영상은 직접 링크된 mp4·mov 등만 받습니다. 스트리밍(m3u8)이나 DRM 영상은 받을 수 없습니다.")
+                Text("영상은 직접 링크된 mp4·mov 등과 스트리밍(m3u8) 영상을 받습니다. .m3u8 주소를 바로 넣어도 됩니다. DRM 이 걸린 영상은 받을 수 없습니다.")
             }
         }
         .onChange(of: media) { scan.fitSelection(to: media) }

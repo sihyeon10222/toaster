@@ -49,7 +49,9 @@ final class JobEntry: Identifiable {
         guard let job = model.job else { return "시작 중" }
         switch job.status {
         case .fetching: return "페이지 분석 중"
-        case .downloading: return job.total > 0 ? "받는 중 \(job.processed)/\(job.total)" : "받는 중"
+        case .downloading:
+            if let stream = job.stream, stream.total > 0 { return "받는 중 · 영상 조각 \(stream.done)/\(stream.total)" }
+            return job.total > 0 ? "받는 중 \(job.processed)/\(job.total)" : "받는 중"
         case .failed: return job.error ?? "실패"
         case .done: return "\(job.images.count)개 · \(formatBytes(job.images.reduce(0) { $0 + $1.size }))"
         }

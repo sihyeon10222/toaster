@@ -20,8 +20,12 @@
 - **일반 페이지 탭** (`#general`, 기본·왼쪽 첫 번째): 아무 페이지 주소를 넣으면 먼저 페이지를 훑어 이미지·영상을 `태그.클래스` 모양이
   같은 것끼리 묶어 미리보기(SVG 포함)와 개수로 보여 준다. 받을 묶음을 고르면 되고(여러 개 가능), CSS 선택자를 아는 사람은
   "직접 입력"도 된다. 받을 종류(둘 다 / 이미지 / 영상, 기본은 둘 다)를 고르면 맞는 묶음만 보인다.
-  묶음은 웹은 `/api/elements`, 앱은 기기 안에서 같은 규칙(`web/src/lib/server/extract.ts`, `ios/Toaster/Collector.swift`)으로 만든다. 직접 링크된 영상 파일(mp4, webm, mov 등)만 받으며
-  스트리밍(m3u8)이나 DRM 영상은 지원하지 않는다.
+  묶음은 웹은 `/api/elements`, 앱은 기기 안에서 같은 규칙(`web/src/lib/server/extract.ts`, `ios/Toaster/Collector.swift`)으로 만든다. 직접 링크된 영상 파일(mp4, webm, mov 등)과
+  스트리밍(HLS, `.m3u8`) 영상을 받는다. `.m3u8` 주소를 바로 넣어도 되고, 페이지 스크립트 속 `.m3u8` 주소는
+  "페이지 속 스트리밍 영상" 묶음으로 보인다. 가장 큰 화질을 골라 조각을 모두 받아 mp4 한 파일로 만든다
+  (TS 조각은 [mux.js](https://github.com/videojs/mux.js)로 바꾸고, 앱은 JavaScriptCore 안에서 같은 mux.js 를 돌린 뒤
+  AVFoundation 으로 보통 mp4 로 다시 쓴다. 소리가 따로 있으면 합친다). AES-128 잠금은 목록의 열쇠로 풀고,
+  DRM(SAMPLE-AES, FairPlay, Widevine)과 실시간 방송은 받지 않는다. (`web/src/lib/hls.ts`, `ios/Toaster/HLS.swift`)
   - **자바스크립트로 그리는 페이지**는 iOS 앱에서만 된다 (아이폰 안의 보이지 않는 WKWebView 로 열어 끝까지 스크롤).
 - **텔레그램 스티커로 저장** (웹): 받기가 끝난 결과에서 버튼을 누르면 파일마다
   [텔레그램 스티커 규격](https://core.telegram.org/import-stickers)에 맞게 바꿔 `<이름>.zip`(파일이 하나면 그 파일)으로 저장한다.

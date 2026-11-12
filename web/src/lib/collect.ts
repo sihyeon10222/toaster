@@ -3,9 +3,11 @@
 import { zipSync } from "fflate";
 import { loopForever } from "@/lib/animation";
 import { imageLook, smallerDuplicates, type ImageLook } from "@/lib/image-look";
+import { downloadHls } from "@/lib/hls";
+import { isPlaylist } from "@/lib/hls-urls";
 import { EXT_BY_TYPE, sniffType } from "@/lib/sniff";
 
-/** 받을 종류. video 는 직접 링크된 mp4/webm/mov 등만 (스트리밍·DRM 미지원) */
+/** 받을 종류. video 는 직접 링크된 mp4/webm/mov 등과 스트리밍(m3u8) 영상 (DRM 은 받지 않는다) */
 export type Media = "image" | "video" | "all";
 export type JobStatus = "fetching" | "downloading" | "done" | "failed";
 
@@ -35,6 +37,8 @@ export interface Job {
   images: CollectedFile[];
   errors: string[];
   error: string | null;
+  /** 스트리밍 영상(m3u8)을 받는 중이면 조각 진행 상황 (끝낸 조각, 전체 조각, 아직 안 끝난 영상들이 받은 몫의 합) */
+  stream?: { done: number; total: number; fraction: number } | null;
 }
 
 const CONCURRENCY = 6;
@@ -103,6 +107,19 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
   const errors: string[] = [];
   let processed = 0;
   let next = 0;
+  const streams = new Map<number, { done: number; total: number }>();
+  const streamPatch = (): Partial<Job> => {
+    const list = [...streams.values()];
+    return {
+      stream: list.length
+        ? {
+            done: list.reduce((s, p) => s + p.done, 0),
+            total: list.reduce((s, p) => s + p.total, 0),
+            fraction: list.reduce((s, p) => s + (p.total ? p.done / p.total : 0), 0),
+          }
+        : null,
+    };
+  };
 
   const worker = async () => {
     while (next < urls.length && !signal?.aborted) {
@@ -112,10 +129,28 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
         const q = new URLSearchParams({ url, referer: pageUrl });
         const res = await fetch(`/api/file?${q}`, { signal, cache: "no-store" });
         if (!res.ok) throw new Error(await errorText(res));
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        const type = sniffType(bytes);
+        let bytes = new Uint8Array(await res.arrayBuffer());
+        let hash: string;
+        // 스트리밍 영상(m3u8): 조각을 모두 받아 mp4 한 파일로 만든다
+        const head = new TextDecoder().decode(bytes.subarray(0, 64));
+        if (isPlaylist(head)) {
+          const text = new TextDecoder().decode(bytes);
+          try {
+            const video = await downloadHls(url, text, pageUrl, (done, total) => {
+              streams.set(index, { done, total });
+              emit(streamPatch());
+            }, signal);
+            bytes = new Uint8Array(await video.arrayBuffer());
+          } finally {
+            streams.delete(index);
+            emit(streamPatch());
+          }
+          hash = `stream:${url}`;
+        } else {
+          hash = await sha256(bytes);
+        }
+        const type = isPlaylist(head) ? "video/mp4" : sniffType(bytes);
         if (!type) throw new Error("이미지나 영상이 아닙니다");
-        const hash = await sha256(bytes);
         // 고르지 않은 종류이거나, 같은 파일이 다른 주소로 또 나온 경우는 조용히 건너뛴다
         if (wanted(type, input.media) && !seen.has(hash)) {
           seen.add(hash);
@@ -150,7 +185,15 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
   emit({
     status: images.length > 0 ? "done" : "failed",
     images,
-    error: images.length > 0 ? null : signal?.aborted ? "취소했습니다." : "받은 파일이 없습니다.",
+    error:
+      images.length > 0
+        ? null
+        : signal?.aborted
+          ? "취소했습니다."
+          : // 하나만 받으려다 실패했으면 그 이유를 그대로 (예: 실시간 방송, DRM)
+            errors.length === 1
+            ? errors[0].split(": ").slice(1).join(": ")
+            : "받은 파일이 없습니다.",
   });
   return job;
 }
