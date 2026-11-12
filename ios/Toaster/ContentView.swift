@@ -131,7 +131,7 @@ struct ContentView: View {
         let entry = store.start(
             mode: .general, title: title,
             input: CollectInput(url: url, selector: scan.selector(for: media), media: media, render: render),
-            folderName: Instagram.code(url).map { "instagram_\($0)" } ?? parsed?.host() ?? "toaster"
+            folderName: Post(url)?.folderName ?? parsed?.host() ?? "toaster"
         )
         path.append(entry.id)
     }

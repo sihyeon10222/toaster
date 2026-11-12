@@ -71,7 +71,7 @@ async function ensureSafeUrl(raw: string): Promise<URL> {
 /** 안전한 주소인지 확인하며 GET. 리다이렉트는 직접 따라가며 매번 검사한다. */
 export async function safeFetch(
   raw: string,
-  { referer, range }: { referer?: string; range?: string } = {},
+  { referer, range, userAgent = USER_AGENT }: { referer?: string; range?: string; userAgent?: string } = {},
 ): Promise<Response> {
   let url = raw;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
@@ -85,7 +85,7 @@ export async function safeFetch(
         redirect: "manual",
         signal: controller.signal,
         headers: {
-          "User-Agent": USER_AGENT,
+          "User-Agent": userAgent,
           "Accept-Language": "ko,en;q=0.8",
           ...(referer ? { Referer: referer } : {}),
           ...(range ? { Range: range } : {}),

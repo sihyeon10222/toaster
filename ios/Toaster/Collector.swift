@@ -93,7 +93,7 @@ enum Collector {
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
     private static let concurrency = 6
     private static let maxURLs = 500
-    private static let maxFileBytes = 100 * 1024 * 1024
+    static let maxFileBytes = 100 * 1024 * 1024
 
     /// 페이지를 분석하고 파일을 모두 받는다. 진행될 때마다 update 로 현재 상태를 넘긴다.
     /// 실패해도 throw 하지 않고 status == .failed 로 끝난다.
@@ -106,11 +106,12 @@ enum Collector {
         let urls: [URL]
         do {
             let (html, finalURL) = try await loadPage(input.url, render: input.render)
-            // 인스타그램 게시물에서 "게시물의 사진/영상" 을 골랐으면 퍼가기 페이지의 데이터를 그대로 쓴다
+            // 인스타그램·X·스레드 게시물에서 "게시물의 사진/영상" 을 골랐으면 퍼가기 데이터를 그대로 쓴다
+            let post = Post(input.url)
             var found: (urls: [URL], title: String)
-            if Instagram.code(input.url) != nil, Instagram.isToken(input.selector) {
-                let ig = Instagram.items(html: html)
-                found = (Instagram.pick(ig.items, selector: input.selector), ig.title)
+            if let post, post.isToken(input.selector) {
+                let got = await post.items(html)
+                found = (post.pick(got.items, selector: input.selector), got.title)
             } else {
                 // "스트리밍 영상" 묶음을 골랐으면 페이지 속 .m3u8 주소(또는 붙여 넣은 .m3u8 주소 자체)를 더한다
                 let (css, streams) = HLS.split(input.selector)
@@ -122,8 +123,8 @@ enum Collector {
             }
             pageURL = finalURL
             urls = found.urls
-            // 인스타그램은 속으로 퍼가기 페이지를 읽지만 화면에는 붙여 넣은 주소를 보여 준다
-            job.url = Instagram.code(input.url) != nil ? input.url : finalURL.absoluteString
+            // 게시물은 속으로 퍼가기 데이터를 읽지만 화면에는 붙여 넣은 주소를 보여 준다
+            job.url = post != nil ? input.url : finalURL.absoluteString
             job.title = found.title
         } catch {
             job.status = .failed
@@ -253,8 +254,8 @@ enum Collector {
         guard let url = URL(string: address.trimmingCharacters(in: .whitespaces)),
               ["http", "https"].contains(url.scheme?.lowercased())
         else { throw CollectError(message: "http 또는 https 주소를 넣어 주세요.") }
-        // 인스타그램 게시물·릴스는 로그인 없이 볼 수 있는 퍼가기 페이지를 대신 읽는다
-        if let code = Instagram.code(address) { return try await fetchHTML(Instagram.embedURL(code)) }
+        // 인스타그램·X·스레드 게시물은 로그인 없이 볼 수 있는 퍼가기 데이터를 대신 읽는다
+        if let post = Post(address) { return try await fetchHTML(post.source, userAgent: post.userAgent) }
         // .m3u8 주소는 웹뷰로 열면 재생이 시작되므로 언제나 그냥 받는다
         if url.pathExtension.lowercased() == "m3u8" { return try await fetchHTML(url) }
         return render ? try await PageRenderer.render(url) : try await fetchHTML(url)
@@ -271,8 +272,10 @@ enum Collector {
         return ImageFrames.decode(data, maxPixel: maxPixel)
     }
 
-    private static func fetchHTML(_ url: URL) async throws -> (String, URL) {
-        let (data, response) = try await load(request(url))
+    private static func fetchHTML(_ url: URL, userAgent: String? = nil) async throws -> (String, URL) {
+        var req = request(url)
+        if let userAgent { req.setValue(userAgent, forHTTPHeaderField: "User-Agent") }
+        let (data, response) = try await load(req)
         let text = String(decoding: data, as: UTF8.self)
         return (text, response.url ?? url)
     }
@@ -534,8 +537,7 @@ extension Collector {
 
     /// 페이지 안의 이미지·영상을 "태그.클래스" 모양이 같은 것끼리 묶는다.
     /// 묶음마다 만든 선택자를 실제 받기와 같은 규칙(mediaURLs)으로 다시 돌려 개수·미리보기를 정확히 맞춘다.
-    static func scanElements(html: String, pageURL: URL, instagram: Bool = false) throws -> [ElementGroup] {
-        if instagram { return try instagramGroups(html) }
+    static func scanElements(html: String, pageURL: URL) throws -> [ElementGroup] {
         // 붙여 넣은 주소가 .m3u8 재생 목록이면 그 영상 하나
         if HLS.isPlaylist(Data(html.utf8.prefix(64))) { return [streamGroup(count: 1, label: "스트리밍 영상 (m3u8)")] }
         let doc = try SwiftSoup.parse(html, pageURL.absoluteString)
@@ -609,23 +611,20 @@ extension Collector {
         ElementGroup(selector: HLS.token, isVideo: true, count: count, previews: [], isEverything: false, label: label)
     }
 
-    /// 인스타그램은 게시물 안의 사진·영상을 두 묶음으로 보여 준다
-    private static func instagramGroups(_ html: String) throws -> [ElementGroup] {
-        let items = Instagram.items(html: html).items
-        guard !items.isEmpty else {
-            throw CollectError(message: "인스타그램 게시물을 읽지 못했습니다. 비공개 계정이거나 지워진 게시물일 수 있습니다.")
-        }
+    /// 인스타그램·X·스레드 게시물은 안의 사진·영상을 두 묶음으로 보여 준다
+    static func postGroups(_ post: Post, _ items: [PostItem]) throws -> [ElementGroup] {
+        guard !items.isEmpty else { throw CollectError(message: post.emptyMessage) }
         let photos = items.filter { !$0.isVideo }, videos = items.filter(\.isVideo)
         var groups: [ElementGroup] = []
         if !photos.isEmpty {
             groups.append(ElementGroup(
-                selector: Instagram.imagesToken, isVideo: false, count: photos.count,
+                selector: post.imagesToken, isVideo: false, count: photos.count,
                 previews: photos.prefix(4).compactMap(\.preview), isEverything: true, label: "게시물의 사진"
             ))
         }
         if !videos.isEmpty {
             groups.append(ElementGroup(
-                selector: Instagram.videosToken, isVideo: true, count: videos.count,
+                selector: post.videosToken, isVideo: true, count: videos.count,
                 previews: videos.prefix(4).compactMap(\.preview), isEverything: true, label: "게시물의 영상"
             ))
         }

@@ -36,10 +36,12 @@ final class PageScan {
         task = Task {
             do {
                 let (html, finalURL) = try await Collector.loadPage(url, render: render)
-                let instagram = Instagram.code(url) != nil
-                let found = try await Task.detached {
-                    try Collector.scanElements(html: html, pageURL: finalURL, instagram: instagram)
-                }.value
+                let post = Post(url)
+                let found = if let post {
+                    try Collector.postGroups(post, await post.items(html).items)
+                } else {
+                    try await Task.detached { try Collector.scanElements(html: html, pageURL: finalURL) }.value
+                }
                 guard self.key == key else { return }
                 groups = found
                 pageURL = finalURL
@@ -50,8 +52,8 @@ final class PageScan {
                     : .loaded
                 let fitted: Media = visible(media).isEmpty && !found.isEmpty ? .all : media
                 if fitted != media { onMedia(fitted) }
-                if instagram {
-                    // 인스타그램 게시물은 사진·영상을 모두 골라 둔다 (게시물 하나를 통째로 받는 경우가 대부분)
+                if post != nil {
+                    // 인스타그램·X·스레드 게시물은 사진·영상을 모두 골라 둔다 (게시물 하나를 통째로 받는 경우가 대부분)
                     selected = Set(visible(fitted).map(\.id))
                 } else {
                     fitSelection(to: fitted)
