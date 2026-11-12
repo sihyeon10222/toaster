@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { GeneralForm } from "@/components/general-form";
 import { GearIcon, Spinner, TrashIcon, XIcon } from "@/components/icons";
 import { KakaoForm } from "@/components/kakao-form";
 import { EmptyPanel, ResultPanel, formatBytes } from "@/components/result-panel";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { Segmented, glassIconButton, iconButton } from "@/components/ui";
+import { readImport } from "@/lib/bookmarklet";
 import { makeZip } from "@/lib/collect";
 import { saveBlob } from "@/lib/download";
 import { KAKAO_EMOTICON_SELECTOR, kakaoEmoticonUrl } from "@/lib/kakao";
@@ -207,6 +208,31 @@ export function ToasterApp() {
   // 텔레그램 스티커 변환 진행 상황과 실패 목록 (작업별)
   const [stickerProgress, setStickerProgress] = useState<Record<string, StickerProgress>>({});
   const [stickerErrors, setStickerErrors] = useState<Record<string, string[]>>({});
+
+  // 북마클릿이 넘겨준 페이지(#import=…)면 바로 받기를 시작한다
+  useEffect(() => {
+    const take = () => {
+      const imported = readImport(window.location.hash);
+      if (!imported) return;
+      // 새로고침해도 또 받지 않도록 주소에서 먼저 지운다
+      history.replaceState(null, "", "#general");
+      let title = imported.page;
+      let zipName = "toaster.zip";
+      try {
+        const u = new URL(imported.page);
+        title = u.hostname.replace(/^www\./, "") + (u.pathname === "/" ? "" : u.pathname);
+        const code = instagramCode(imported.page);
+        zipName = `${saveName(code ? `instagram_${code}` : u.hostname)}.zip`;
+      } catch {}
+      start(
+        { url: imported.page, selector: "", media: "all", urls: imported.urls, title: imported.title },
+        { mode: "general", title, zipName },
+      );
+    };
+    take();
+    window.addEventListener("hashchange", take);
+    return () => window.removeEventListener("hashchange", take);
+  }, [start]);
 
   const setMode = (m: Mode) => {
     window.location.hash = m;

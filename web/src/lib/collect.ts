@@ -15,6 +15,9 @@ export interface CollectInput {
   url: string;
   selector: string;
   media: Media;
+  /** 북마클릿이 넘겨준 주소들: 페이지를 다시 읽지 않고 이 주소들을 그대로 받는다 (url 은 그 페이지, Referer 로 쓴다) */
+  urls?: string[];
+  title?: string;
 }
 
 export interface CollectedFile {
@@ -78,20 +81,25 @@ export async function collect(input: CollectInput, onUpdate: (job: Job) => void,
   };
   emit({});
 
-  // 1) 페이지 분석
+  // 1) 페이지 분석 (북마클릿이 주소를 넘겨줬으면 건너뛴다)
   let urls: string[];
   let pageUrl = input.url;
-  try {
-    const q = new URLSearchParams({ url: input.url, selector: input.selector });
-    const res = await fetch(`/api/scan?${q}`, { signal });
-    if (!res.ok) throw new Error(await errorText(res));
-    const data: { url: string; title: string; urls: string[] } = await res.json();
-    urls = data.urls;
-    pageUrl = data.url;
-    emit({ url: data.url, title: data.title });
-  } catch (e) {
-    emit({ status: "failed", error: signal?.aborted ? "취소했습니다." : (e as Error).message || "서버에 연결하지 못했습니다." });
-    return job;
+  if (input.urls) {
+    urls = input.urls;
+    emit({ title: input.title ?? "" });
+  } else {
+    try {
+      const q = new URLSearchParams({ url: input.url, selector: input.selector });
+      const res = await fetch(`/api/scan?${q}`, { signal });
+      if (!res.ok) throw new Error(await errorText(res));
+      const data: { url: string; title: string; urls: string[] } = await res.json();
+      urls = data.urls;
+      pageUrl = data.url;
+      emit({ url: data.url, title: data.title });
+    } catch (e) {
+      emit({ status: "failed", error: signal?.aborted ? "취소했습니다." : (e as Error).message || "서버에 연결하지 못했습니다." });
+      return job;
+    }
   }
   if (urls.length === 0) {
     emit({ status: "failed", error: "선택자에 맞는 이미지·영상을 찾지 못했습니다." });

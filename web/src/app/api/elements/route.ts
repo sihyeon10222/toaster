@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       const { items } = instagramItems(html);
       if (items.length === 0) {
         return Response.json(
-          { error: "인스타그램이 웹 서버에는 이 게시물을 보여 주지 않았습니다. 아이폰·아이패드·맥 앱에서 받아 주세요." },
+          { error: "인스타그램이 웹 서버에는 이 게시물을 보여 주지 않았습니다. 아래 \"Toaster로 받기\" 북마크를 쓰거나 아이폰·아이패드·맥 앱에서 받아 주세요." },
           { status: 422 },
         );
       }

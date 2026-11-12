@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BookmarkletCard } from "@/components/bookmarklet-card";
 import { ElementPicker, usePageScan } from "@/components/element-picker";
 import { ErrorBox, PasteButton, Segmented, buttonPrimary, hintText, inputBox, labelText } from "@/components/ui";
 import type { CollectInput, Media } from "@/lib/collect";
@@ -110,6 +111,7 @@ export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => v
       <button type="submit" disabled={!ready} className={`${buttonPrimary} w-full`}>
         가져오기
       </button>
+      <BookmarkletCard />
     </form>
   );
 }
