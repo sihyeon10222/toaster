@@ -128,11 +128,15 @@ private enum Photos {
     /// 하나씩 넣고 성공한 개수를 돌려준다. 사진 앱이 못 받는 형식(SVG·WEBM 등)은 건너뛴다.
     nonisolated static func add(_ items: [(url: URL, video: Bool)]) async -> Int {
         var saved = 0
-        for item in items {
+        // 사진 앱을 "캡처됨"으로 정렬해도 받은 순서대로 보이게, 찍은 날짜를 1초씩 늘려 적는다
+        // (원본에 찍은 날짜가 없거나 제각각이면 순서가 꼬인다)
+        let base = Date()
+        for (index, item) in items.enumerated() {
             let ok = await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
                 PHPhotoLibrary.shared().performChanges({
                     let request = PHAssetCreationRequest.forAsset()
                     request.addResource(with: item.video ? .video : .photo, fileURL: item.url, options: nil)
+                    request.creationDate = base.addingTimeInterval(TimeInterval(index))
                 }, completionHandler: { success, _ in done.resume(returning: success) })
             }
             if ok { saved += 1 }
