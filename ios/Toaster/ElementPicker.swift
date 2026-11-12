@@ -106,6 +106,7 @@ final class PageScan {
 
 // MARK: - 화면
 
+/// "찾을 요소" 구역 (Form 안의 Section)
 struct ElementPicker: View {
     let scan: PageScan
     let media: Media
@@ -118,54 +119,62 @@ struct ElementPicker: View {
     private let collapsedCount = 5
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        Section {
+            if scan.manual { manualField } else { list }
+        } header: {
             HStack {
-                FieldLabel(text: "찾을 요소")
+                Text("찾을 요소")
                 Spacer()
                 Button(scan.manual ? "목록에서 고르기" : "직접 입력") {
                     withAnimation(.snappy(duration: 0.2)) { scan.manual.toggle() }
                 }
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.tMuted)
-                .buttonStyle(.plain)
+                .font(.footnote.weight(.semibold))
+                .textCase(nil)
+                .buttonStyle(.borderless)
             }
-            if scan.manual { manualField } else { list }
+        } footer: {
+            footer
         }
     }
 
     private var manualField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("img.emoticon, div.thumb img", text: Bindable(scan).manualSelector)
-                .font(.system(size: 14, design: .monospaced))
-                .plainInput()
-                .focused($focused)
-                .fieldChrome(focused: focused)
-            Hint(text: "CSS 선택자입니다. 감싸는 요소를 고르면 안쪽 이미지·영상까지 찾습니다.")
+        TextField("CSS 선택자", text: Bindable(scan).manualSelector, prompt: Text("img.emoticon, div.thumb img"))
+            .labelsHidden()
+            .font(.body.monospaced())
+            .plainInput()
+            .focused($focused)
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        if scan.manual {
+            Text("CSS 선택자입니다. 감싸는 요소를 고르면 안쪽 이미지·영상까지 찾습니다.")
+        } else if !canScan {
+            Text("페이지 주소를 넣으면 그 페이지에 있는 이미지·영상을 묶음으로 보여 줍니다.")
+        } else if needsScan {
+            Text("페이지에 어떤 이미지·영상이 있는지 먼저 보여 드립니다.")
+        } else if scan.phase == .loaded, !scan.visible(media).isEmpty {
+            Text("여러 개를 고를 수 있습니다. 같은 파일은 한 번만 받습니다.")
         }
     }
 
     @ViewBuilder
     private var list: some View {
         if !canScan {
-            Hint(text: "페이지 주소를 넣으면 그 페이지에 있는 이미지·영상을 묶음으로 보여 줍니다. 받을 묶음을 고르세요.")
+            Label("주소를 먼저 넣어 주세요", systemImage: "link")
+                .foregroundStyle(Color.tMuted)
         } else if needsScan {
-            Button(action: onScan) {
-                Label("페이지 살펴보기", systemImage: "magnifyingglass")
-            }
-            .buttonStyle(SecondaryButtonStyle())
-            Hint(text: "페이지에 어떤 이미지·영상이 있는지 먼저 보여 드립니다.")
+            Button(action: onScan) { Label("페이지 살펴보기", systemImage: "magnifyingglass") }
         } else {
             switch scan.phase {
             case .idle, .loading:
                 HStack(spacing: 10) {
                     ProgressView().controlSize(.small)
-                    Text("페이지를 살펴보는 중").font(.system(size: 14)).foregroundStyle(Color.tMuted)
+                    Text("페이지를 살펴보는 중").foregroundStyle(Color.tMuted)
                 }
-                .frame(maxWidth: .infinity, minHeight: 64)
-                .background(Color.tBg, in: .rect(cornerRadius: 12, style: .continuous))
             case .failed(let message):
-                ErrorBox(message: message)
-                Button("다시 살펴보기", action: onScan).buttonStyle(SecondaryButtonStyle())
+                ErrorRow(message: message)
+                Button(action: onScan) { Label("다시 살펴보기", systemImage: "arrow.clockwise") }
             case .loaded:
                 groupList
             }
@@ -176,27 +185,20 @@ struct ElementPicker: View {
     private var groupList: some View {
         let groups = scan.visible(media)
         if groups.isEmpty {
-            Hint(text: media == .video ? "이 페이지에는 영상이 없습니다." : "이 페이지에는 이미지가 없습니다.")
+            Text(media == .video ? "이 페이지에는 영상이 없습니다." : "이 페이지에는 이미지가 없습니다.")
+                .foregroundStyle(Color.tMuted)
         } else {
             let shown = showAll ? groups : Array(groups.prefix(collapsedCount))
-            VStack(spacing: 8) {
-                ForEach(shown) { group in
-                    GroupRow(group: group, referer: scan.pageURL, selected: scan.selected.contains(group.id)) {
-                        withAnimation(.snappy(duration: 0.15)) { scan.toggle(group) }
-                    }
+            ForEach(shown) { group in
+                GroupRow(group: group, referer: scan.pageURL, selected: scan.selected.contains(group.id)) {
+                    scan.toggle(group)
                 }
             }
             if groups.count > collapsedCount {
                 Button(showAll ? "접기" : "묶음 \(groups.count - collapsedCount)개 더 보기") {
                     withAnimation(.snappy(duration: 0.2)) { showAll.toggle() }
                 }
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.tInk)
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
             }
-            Hint(text: "여러 개를 고를 수 있습니다. 같은 파일은 한 번만 받습니다.")
         }
     }
 }
@@ -216,20 +218,16 @@ private struct GroupRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle().fill(selected ? Color.tAccent : Color.clear)
-                    Circle().strokeBorder(selected ? Color.tInk.opacity(0.15) : Color.tLineStrong, lineWidth: 1.5)
-                    if selected {
-                        Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Color.tOnAccent)
-                    }
-                }
-                .frame(width: 22, height: 22)
-                .padding(.top, 1)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(selected ? Color.tOnAccent : Color.tMuted, selected ? Color.tAccent : Color.clear)
+                    .contentTransition(.symbolEffect(.replace))
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.tInk)
-                        Text("\(group.count)개").font(.system(size: 14).monospacedDigit()).foregroundStyle(Color.tMuted)
+                        Text(title).font(.body.weight(.semibold)).foregroundStyle(Color.tInk)
+                        Text("\(group.count)개").font(.subheadline.monospacedDigit()).foregroundStyle(Color.tMuted)
                     }
                     HStack(spacing: 6) {
                         if group.previews.isEmpty {
@@ -241,7 +239,7 @@ private struct GroupRow: View {
                     }
                     if !group.isEverything {
                         Text(group.selector)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.caption.monospaced())
                             .foregroundStyle(Color.tMuted)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -249,16 +247,11 @@ private struct GroupRow: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.tBg, in: .rect(cornerRadius: 14, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(selected ? Color.tInk.opacity(0.7) : Color.tLine, lineWidth: selected ? 1.5 : 1)
-            }
+            .padding(.vertical, 4)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: selected)
         .accessibilityLabel("\(title) \(group.count)개")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
