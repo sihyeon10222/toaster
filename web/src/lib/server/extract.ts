@@ -17,16 +17,28 @@ const BG_URL_RE = /url\(\s*['"]?([^'")]+)['"]?\s*\)/g;
 export const MAX_URLS = 500;
 const MAX_GROUPS = 16;
 
-/** srcset 에서 가장 큰 후보 ('1x', '640w' 같은 서술자 비교) */
-function bestFromSrcset(value: string): string | null {
+/**
+ * srcset 에서 가장 큰 후보 ('1x', '640w' 같은 서술자 비교)
+ * 주소 안에 쉼표가 있을 수 있어(w_100,h_100 같은 CDN 주소) HTML 규칙대로 "주소 → 서술자 → 쉼표" 순으로 읽는다.
+ */
+export function bestFromSrcset(value: string): string | null {
   let best: string | null = null;
   let bestScore = -1;
-  for (const candidate of value.split(",")) {
-    const bits = candidate.trim().split(/\s+/);
-    if (!bits[0]) continue;
-    const score = bits[1] ? parseFloat(bits[1]) || 1 : 1;
+  const re = /[\s,]*(\S+)([^,]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(value)) && m[0]) {
+    let url = m[1];
+    let descriptor = m[2].trim();
+    if (url.endsWith(",")) {
+      // "a.jpg, b.jpg 2x" 의 "a.jpg," 처럼 서술자 없이 쉼표로 끝난 주소: 뒤는 다음 후보 몫이다
+      url = url.replace(/,+$/, "");
+      re.lastIndex -= m[2].length;
+      descriptor = "";
+    }
+    if (!url) continue;
+    const score = descriptor ? parseFloat(descriptor) || 1 : 1;
     if (score > bestScore) {
-      best = bits[0];
+      best = url;
       bestScore = score;
     }
   }

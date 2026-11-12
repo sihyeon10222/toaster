@@ -136,7 +136,7 @@ export function ElementPicker({
         <button
           type="button"
           onClick={() => scan.setManual(!scan.manual)}
-          className="text-[13px] font-medium text-muted transition hover:text-ink"
+          className="px-4 text-[13px] font-semibold text-ink transition hover:opacity-70"
         >
           {scan.manual ? "목록에서 고르기" : "직접 입력"}
         </button>
@@ -166,7 +166,7 @@ export function ElementPicker({
           <span className={hintText}>페이지에 어떤 이미지·영상이 있는지 먼저 보여 드립니다.</span>
         </>
       ) : scan.phase.kind === "loading" || scan.phase.kind === "idle" ? (
-        <div className="flex h-16 items-center justify-center gap-2.5 rounded-xl bg-bg text-sm text-muted">
+        <div className="flex h-16 items-center justify-center gap-2.5 rounded-[14px] bg-surface text-[15px] text-muted">
           <Spinner className="size-4 text-ink" />
           페이지를 살펴보는 중
         </div>
@@ -254,13 +254,13 @@ function GroupRow({
       aria-checked={selected}
       aria-label={`${title} ${group.count}개`}
       onClick={onToggle}
-      className={`flex w-full items-start gap-3 rounded-[14px] border bg-bg p-3 text-left transition focus-visible:outline-2 focus-visible:outline-ink ${
-        selected ? "border-ink/70 ring-[0.5px] ring-ink/70" : "border-line hover:border-line-strong"
+      className={`flex w-full items-start gap-3 rounded-[14px] bg-surface p-3.5 text-left transition focus-visible:outline-2 focus-visible:outline-ink ${
+        selected ? "ring-2 ring-accent" : "hover:brightness-[.98]"
       }`}
     >
       <span
         className={`mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px] ${
-          selected ? "border-ink/15 bg-accent text-accent-ink" : "border-line-strong"
+          selected ? "border-transparent bg-accent text-accent-ink" : "border-line-strong"
         }`}
       >
         {selected && <CheckIcon className="size-3" />}
@@ -309,7 +309,7 @@ function PreviewTile({ url, referer, isVideo }: { url: string | null; referer: s
 
   return (
     <span
-      className={`relative flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line ${
+      className={`relative flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] ${
         isVideo && !src ? "bg-black" : "checker"
       }`}
     >

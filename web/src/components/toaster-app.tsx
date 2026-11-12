@@ -6,18 +6,18 @@ import { GearIcon, Spinner, TrashIcon, XIcon } from "@/components/icons";
 import { KakaoForm } from "@/components/kakao-form";
 import { EmptyPanel, ResultPanel, formatBytes } from "@/components/result-panel";
 import { SettingsDialog } from "@/components/settings-dialog";
-import { Segmented, iconButton } from "@/components/ui";
+import { Segmented, glassIconButton, iconButton } from "@/components/ui";
 import { makeZip } from "@/lib/collect";
 import { saveBlob } from "@/lib/download";
 import { KAKAO_EMOTICON_SELECTOR, kakaoEmoticonUrl } from "@/lib/kakao";
 import { instagramCode } from "@/lib/instagram";
 import { clearPreviewCache } from "@/lib/preview-cache";
 import { convertToStickers, zipStickers, type StickerProgress } from "@/lib/telegram";
-import { isRunning, useJobs, type Entry, type Mode } from "@/lib/use-jobs";
+import { isRunning, useJobs, type Entry, type Mode, type SaveKind } from "@/lib/use-jobs";
 
 const MODES: { value: Mode; label: string }[] = [
-  { value: "kakao", label: "카카오 이모티콘" },
   { value: "general", label: "일반 페이지" },
+  { value: "kakao", label: "카카오 이모티콘" },
 ];
 const DEFAULT_MODE: Mode = "kakao";
 
@@ -38,7 +38,8 @@ function timeAgo(ms: number) {
   const s = Math.round((Date.now() - ms) / 1000);
   if (s < 60) return "방금";
   if (s < 3600) return `${Math.floor(s / 60)}분 전`;
-  return `${Math.floor(s / 3600)}시간 전`;
+  if (s < 86400) return `${Math.floor(s / 3600)}시간 전`;
+  return `${Math.floor(s / 86400)}일 전`;
 }
 
 const REVEAL = 84; // 밀었을 때 드러나는 삭제 버튼 폭
@@ -93,7 +94,7 @@ function HistoryItem({
   return (
     <li
       ref={rowRef}
-      className="group relative overflow-hidden rounded-xl"
+      className="group relative overflow-hidden border-line not-first:border-t-[0.5px]"
       onPointerDown={(e) => {
         if (e.pointerType !== "touch") return;
         drag.current = { x: e.clientX, y: e.clientY, horizontal: null, moved: false };
@@ -154,7 +155,7 @@ function HistoryItem({
           type="button"
           onClick={() => (open ? onOpenChange(false) : onSelect())}
           aria-current={selected}
-          className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+          className={`flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition ${
             selected ? "bg-surface-2" : "hover:bg-surface-2/60"
           }`}
         >
@@ -166,10 +167,10 @@ function HistoryItem({
             )}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-medium text-ink">{entry.title}</span>
-            <span className={`truncate text-xs ${failed ? "text-danger" : "text-muted"}`}>{summary}</span>
+            <span className="truncate text-[17px] text-ink">{entry.title}</span>
+            <span className={`truncate text-[15px] ${failed ? "text-danger" : "text-muted"}`}>{summary}</span>
           </span>
-          <span className="shrink-0 text-xs text-muted group-hover:opacity-0 group-focus-within:opacity-0">
+          <span className="shrink-0 text-[13px] text-muted group-hover:opacity-0 group-focus-within:opacity-0">
             {timeAgo(entry.startedAt)}
           </span>
         </button>
@@ -190,13 +191,16 @@ function HistoryItem({
 
 export function ToasterApp() {
   const mode = useSyncExternalStore(subscribe, readHash, () => DEFAULT_MODE);
-  const { entries, selected, select, start, remove, removeAll } = useJobs();
+  const { entries, selected, select, start, remove, removeAll, markSaved } = useJobs();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 최근 작업에서 밀어서 삭제 버튼이 열린 줄 (한 번에 하나만)
   const [swipedKey, setSwipedKey] = useState<string | null>(null);
   // 앱 초기화 때 바꿔서 입력 폼을 처음 상태로 다시 그린다
   const [formKey, setFormKey] = useState(0);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  // 이미 저장한 작업은 다시 누르면 한 번 더 저장할지 묻는다
+  const confirmAgain = (entry: Entry, what: SaveKind) =>
+    !entry.saved[what] || window.confirm("이미 저장했습니다. 한 번 더 저장할까요?");
   // 텔레그램 스티커 변환 진행 상황과 실패 목록 (작업별)
   const [stickerProgress, setStickerProgress] = useState<Record<string, StickerProgress>>({});
   const [stickerErrors, setStickerErrors] = useState<Record<string, string[]>>({});
@@ -222,10 +226,12 @@ export function ToasterApp() {
   };
 
   const downloadZip = async (entry: Entry) => {
-    if (entry.job?.status !== "done") return;
+    if (entry.job?.status !== "done" || savingKey) return;
+    if (!confirmAgain(entry, "zip")) return;
     setSavingKey(entry.key);
     try {
       saveBlob(await makeZip(entry.job.images), entry.zipName);
+      markSaved(entry.key, "zip");
     } finally {
       setSavingKey(null);
     }
@@ -234,6 +240,7 @@ export function ToasterApp() {
   const downloadStickers = async (entry: Entry) => {
     const job = entry.job;
     if (job?.status !== "done" || stickerProgress[entry.key]) return;
+    if (!confirmAgain(entry, "stickers")) return;
     const key = entry.key;
     setStickerErrors((m) => ({ ...m, [key]: [] }));
     try {
@@ -245,6 +252,7 @@ export function ToasterApp() {
       else if (result.files.length > 1) {
         saveBlob(await zipStickers(result.files), entry.zipName);
       }
+      if (result.files.length > 0) markSaved(key, "stickers");
     } finally {
       setStickerProgress((m) => {
         const rest = { ...m };
@@ -256,17 +264,14 @@ export function ToasterApp() {
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <aside className="flex flex-col gap-8 border-b border-line bg-surface px-5 py-7 sm:px-8 lg:sticky lg:top-0 lg:h-dvh lg:w-[400px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
+      <aside className="flex flex-col gap-7 border-b border-line bg-bg px-4 py-6 sm:px-6 lg:sticky lg:top-0 lg:h-dvh lg:w-[400px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-end gap-1">
-              <span className="text-[30px] leading-none font-extrabold tracking-[-0.045em]">toaster</span>
-              <span className="mb-[5px] size-2.5 rounded-full bg-accent ring-1 ring-ink/10" />
-            </div>
+          <div className="flex flex-col gap-0.5 px-1 pt-9">
+            <span className="text-[34px] leading-none font-bold tracking-[-0.02em]">toaster</span>
             <span className="text-[13px] text-muted">이모티콘·이미지·영상 수집기</span>
           </div>
-          <button type="button" onClick={() => setSettingsOpen(true)} aria-label="설정" title="설정" className={iconButton}>
-            <GearIcon className="size-[18px]" />
+          <button type="button" onClick={() => setSettingsOpen(true)} aria-label="설정" title="설정" className={glassIconButton}>
+            <GearIcon className="size-5" />
           </button>
         </div>
 
@@ -303,12 +308,12 @@ export function ToasterApp() {
         </section>
 
         <section className="flex flex-col gap-2" aria-label="최근 작업">
-          <h2 className="px-1 text-[13px] font-semibold text-muted">최근 작업</h2>
+          <h2 className="px-4 text-[13px] text-muted">최근 작업</h2>
           {entries.length === 0 ? (
-            <p className="px-1 text-[13px] text-muted/80">아직 작업이 없습니다.</p>
+            <p className="rounded-[14px] bg-surface px-4 py-3 text-[15px] text-muted">아직 작업이 없습니다. 위에서 링크를 넣고 받기를 눌러 보세요.</p>
           ) : (
             <>
-              <ul className="-mx-2 flex flex-col">
+              <ul className="flex flex-col overflow-hidden rounded-[14px] bg-surface">
                 {entries.map((e) => (
                   <HistoryItem
                     key={e.key}
@@ -324,14 +329,11 @@ export function ToasterApp() {
                   />
                 ))}
               </ul>
-              <p className="px-1 text-xs text-muted/80 pointer-fine:hidden">왼쪽으로 밀면 지울 수 있습니다.</p>
+              <p className="px-4 text-[13px] text-muted pointer-fine:hidden">왼쪽으로 밀면 지울 수 있습니다.</p>
             </>
           )}
         </section>
 
-        <p className="mt-auto text-xs leading-relaxed text-muted">
-          받은 파일은 저작권자의 권리를 지켜 개인 용도로만 사용해 주세요.
-        </p>
       </aside>
 
       <SettingsDialog
@@ -353,6 +355,8 @@ export function ToasterApp() {
             key={selected.key}
             entry={selected}
             saving={savingKey === selected.key}
+            zipSaved={!!selected.saved.zip}
+            stickersSaved={!!selected.saved.stickers}
             onDownloadZip={() => downloadZip(selected)}
             stickerProgress={stickerProgress[selected.key] ?? null}
             stickerErrors={stickerErrors[selected.key] ?? []}

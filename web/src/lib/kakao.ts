@@ -28,7 +28,12 @@ export function parseKakaoSlug(input: string): string | null {
   }
   if (url.hostname !== "e.kakao.com") return null;
   const match = url.pathname.match(/^\/(?:app\/)?t\/([^/]+)\/?$/);
-  const slug = match ? decodeURIComponent(match[1]) : null;
+  let slug: string | null = null;
+  try {
+    slug = match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null; // %E0%A4 처럼 깨진 주소
+  }
   return slug && SLUG_RE.test(slug) ? slug.toLowerCase() : null;
 }
 

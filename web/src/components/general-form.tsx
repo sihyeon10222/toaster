@@ -6,9 +6,9 @@ import { ErrorBox, PasteButton, Segmented, buttonPrimary, hintText, inputBox, la
 import type { CollectInput, Media } from "@/lib/collect";
 
 const MEDIA_OPTIONS: { value: Media; label: string }[] = [
+  { value: "all", label: "둘 다" },
   { value: "image", label: "이미지" },
   { value: "video", label: "영상" },
-  { value: "all", label: "둘 다" },
 ];
 
 const isPageUrl = (value: string) => {
@@ -23,7 +23,7 @@ const isPageUrl = (value: string) => {
 /** 일반 페이지 입력: 주소 → 페이지에 있는 요소 묶음에서 고르기 (또는 CSS 선택자 직접 입력) */
 export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => void }) {
   const [url, setUrl] = useState("");
-  const [media, setMedia] = useState<Media>("image");
+  const [media, setMedia] = useState<Media>("all");
   const [error, setError] = useState<string | null>(null);
   const scan = usePageScan();
 
@@ -44,7 +44,7 @@ export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => v
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-5">
+    <form onSubmit={submit} className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <label htmlFor="page-url" className={labelText}>
           페이지 주소
@@ -70,6 +70,12 @@ export function GeneralForm({ onSubmit }: { onSubmit: (input: CollectInput) => v
             className={inputBox}
           />
           <PasteButton
+            value={url}
+            onClear={() => {
+              setUrl("");
+              setError(null);
+              document.getElementById("page-url")?.focus();
+            }}
             onPaste={(text) => {
               setUrl(text);
               setError(null);

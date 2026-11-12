@@ -92,7 +92,7 @@ export async function safeFetch(raw: string, { referer }: { referer?: string } =
       url = new URL(location, checked).toString();
       continue;
     }
-    if (!res.ok) throw new FetchError(`HTTP ${res.status}: ${checked}`, 502);
+    if (!res.ok) throw new FetchError(`${httpReason(res.status)} (HTTP ${res.status}: ${checked})`, 502);
     return res;
   }
   throw new FetchError("리다이렉트가 너무 많습니다.", 502);
@@ -137,4 +137,13 @@ export function limitStream(body: ReadableStream<Uint8Array>, maxBytes: number):
       },
     }),
   );
+}
+
+/** 앱(Collector.swift)과 같은 문구 */
+function httpReason(status: number) {
+  if (status === 404 || status === 410) return "페이지를 찾을 수 없습니다. 주소를 확인해 주세요.";
+  if (status === 401 || status === 403) return "사이트가 접근을 막았습니다.";
+  if (status === 429) return "요청이 너무 많다고 사이트가 막았습니다. 잠시 뒤 다시 해 주세요.";
+  if (status >= 500) return "사이트 서버에 문제가 있습니다.";
+  return "받지 못했습니다.";
 }

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckIcon, ResetIcon, SparkleIcon, TrayIcon, XIcon } from "@/components/icons";
 import { formatBytes } from "@/components/result-panel";
-import { buttonSecondary, hintText, iconButton, labelText } from "@/components/ui";
+import { buttonSecondary, glassIconButton, hintText, labelText } from "@/components/ui";
 import { previewCacheBytes } from "@/lib/preview-cache";
 
 type Action = "cache" | "data" | "reset";
@@ -87,11 +87,11 @@ export function SettingsDialog({
       onClick={(e) => {
         if (e.target === ref.current) onClose(); // 바깥 어두운 곳을 누르면 닫는다
       }}
-      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-2xl border border-line bg-bg p-0 text-ink shadow-card backdrop:bg-black/40"
+      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-[28px] bg-bg p-0 text-ink shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm"
     >
-      <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-        <h2 className="text-[15px] font-semibold">설정</h2>
-        <button type="button" onClick={onClose} aria-label="닫기" className={iconButton}>
+      <div className="flex items-center justify-between px-5 pt-4 pb-1">
+        <h2 className="text-[17px] font-semibold">설정</h2>
+        <button type="button" onClick={onClose} aria-label="닫기" className={glassIconButton}>
           <XIcon className="size-4" />
         </button>
       </div>
@@ -99,7 +99,7 @@ export function SettingsDialog({
       <div className="flex flex-col gap-2 p-5">
         <span className={labelText}>저장 공간</span>
         {asking ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
+          <div className="flex flex-col gap-3 rounded-[22px] bg-surface p-4">
             <span className="text-[15px] font-semibold">{CONFIRM[asking].title}</span>
             <span className={hintText}>{CONFIRM[asking].message}</span>
             <div className="flex justify-end gap-2">
@@ -109,14 +109,14 @@ export function SettingsDialog({
               <button
                 type="button"
                 onClick={() => void perform(asking)}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-danger px-3.5 text-sm font-semibold text-white transition hover:brightness-95"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-danger px-4 text-[15px] font-semibold text-white transition hover:brightness-95 active:scale-[.97]"
               >
                 {CONFIRM[asking].button}
               </button>
             </div>
           </div>
         ) : (
-          <ul className="flex flex-col overflow-hidden rounded-2xl border border-line bg-surface p-1">
+          <ul className="flex flex-col overflow-hidden rounded-[22px] bg-surface">
             <ManageRow
               icon={<SparkleIcon className="size-[18px]" />}
               title="캐시 삭제"
@@ -142,7 +142,7 @@ export function SettingsDialog({
           </ul>
         )}
         {notice && (
-          <span className="flex items-center gap-1.5 text-[13px] font-medium text-ok">
+          <span className="flex items-center gap-1.5 px-4 text-[13px] font-medium text-ok">
             <CheckIcon className="size-4" />
             {notice}
           </span>
@@ -177,7 +177,7 @@ function ManageRow({
         type="button"
         disabled={disabled}
         onClick={onClick}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
       >
         <span className={`flex w-7 justify-center ${destructive ? "text-danger" : "text-ink"}`}>{icon}</span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">

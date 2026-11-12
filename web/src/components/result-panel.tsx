@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DownloadIcon, ExternalIcon, SendIcon, Spinner } from "@/components/icons";
+import { CheckIcon, DownloadIcon, ExternalIcon, SendIcon, Spinner } from "@/components/icons";
 import { ErrorBox, Segmented, buttonPrimary, buttonSecondaryLg, iconButton } from "@/components/ui";
 import type { CollectedFile, JobStatus } from "@/lib/collect";
 import { saveBlob } from "@/lib/download";
@@ -14,10 +14,10 @@ export const formatBytes = (n: number) =>
 const extOf = (f: CollectedFile) => f.filename.slice(f.filename.lastIndexOf(".") + 1).toUpperCase();
 
 const STATUS: Record<JobStatus, { label: string; tone: string }> = {
-  fetching: { label: "페이지 분석 중", tone: "text-accent-ink bg-accent" },
-  downloading: { label: "받는 중", tone: "text-accent-ink bg-accent" },
-  done: { label: "완료", tone: "text-ok bg-ok/10" },
-  failed: { label: "실패", tone: "text-danger bg-danger/10" },
+  fetching: { label: "페이지 분석 중", tone: "text-muted" },
+  downloading: { label: "받는 중", tone: "text-muted" },
+  done: { label: "완료", tone: "text-ok" },
+  failed: { label: "실패", tone: "text-danger" },
 };
 
 type View = "grid" | "list";
@@ -45,7 +45,7 @@ export function EmptyPanel({ mode }: { mode: Mode }) {
         className="grid grid-cols-4 gap-3 sm:grid-cols-6 [mask-image:linear-gradient(to_bottom,black,transparent)]"
       >
         {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} className="checker aspect-square rounded-xl border border-line opacity-70" />
+          <div key={i} className="checker aspect-square rounded-2xl opacity-70" />
         ))}
       </div>
       <div className="flex max-w-xl flex-col gap-2">
@@ -60,7 +60,7 @@ export function EmptyPanel({ mode }: { mode: Mode }) {
       </div>
       <ol className="grid gap-3 sm:grid-cols-3">
         {STEPS.map((s) => (
-          <li key={s.n} className="flex flex-col gap-1.5 rounded-2xl border border-line bg-surface p-5">
+          <li key={s.n} className="flex flex-col gap-1.5 rounded-[22px] bg-surface p-5">
             <span className="flex size-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-ink">
               {s.n}
             </span>
@@ -79,7 +79,7 @@ function Stat({ label, value, tone = "" }: { label: string; value: React.ReactNo
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[13px] text-muted">{label}</span>
-      <span className={`text-2xl font-bold tracking-[-0.03em] tabular-nums ${tone}`}>{value}</span>
+      <span className={`text-[22px] font-bold tabular-nums ${tone}`}>{value}</span>
     </div>
   );
 }
@@ -100,7 +100,7 @@ function SaveButton({ file }: { file: CollectedFile }) {
 
 function Tile({ file }: { file: CollectedFile }) {
   return (
-    <li className="group animate-fade-in overflow-hidden rounded-2xl border border-line bg-surface transition hover:border-line-strong hover:shadow-card">
+    <li className="group animate-fade-in overflow-hidden rounded-2xl bg-surface transition hover:shadow-card">
       <div className="relative">
         {file.kind === "video" ? (
           // 미리보기는 소리 없이 계속 반복 재생한다
@@ -111,11 +111,11 @@ function Tile({ file }: { file: CollectedFile }) {
             <img src={file.url} alt={file.filename} loading="lazy" className="h-full w-full object-contain p-3" />
           </a>
         )}
-        <div className="absolute top-2 right-2 rounded-xl bg-surface/90 p-0.5 opacity-0 shadow-card backdrop-blur transition group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="glass absolute top-2 right-2 rounded-full p-0.5 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100">
           <SaveButton file={file} />
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
         <span className="truncate font-mono text-xs text-ink">{file.filename}</span>
         <span className="shrink-0 text-xs text-muted tabular-nums">{formatBytes(file.size)}</span>
       </div>
@@ -125,7 +125,7 @@ function Tile({ file }: { file: CollectedFile }) {
 
 function FileTable({ files }: { files: CollectedFile[] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+    <div className="overflow-x-auto rounded-[22px] bg-surface">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line text-left text-[13px] text-muted">
@@ -144,7 +144,7 @@ function FileTable({ files }: { files: CollectedFile[] }) {
               <td className="py-2.5 pl-5 text-[13px] text-muted tabular-nums">{i + 1}</td>
               <td className="py-2.5">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="checker block size-12 shrink-0 overflow-hidden rounded-lg border border-line">
+                  <span className="checker block size-12 shrink-0 overflow-hidden rounded-[10px]">
                     {f.kind === "video" ? (
                       <video src={f.url} autoPlay loop muted playsInline className="h-full w-full bg-black object-contain" />
                     ) : (
@@ -183,6 +183,8 @@ function FileTable({ files }: { files: CollectedFile[] }) {
 export function ResultPanel({
   entry,
   saving,
+  zipSaved,
+  stickersSaved,
   onDownloadZip,
   stickerProgress,
   stickerErrors,
@@ -190,6 +192,8 @@ export function ResultPanel({
 }: {
   entry: Entry;
   saving: boolean;
+  zipSaved: boolean;
+  stickersSaved: boolean;
   onDownloadZip: () => void;
   stickerProgress: StickerProgress | null;
   stickerErrors: string[];
@@ -205,10 +209,10 @@ export function ResultPanel({
   return (
     <div className="flex flex-col" aria-live="polite">
       {/* 머리: 제목 · 상태 · 숫자 · zip */}
-      <header className={`flex flex-col gap-6 border-b border-line pt-8 pb-7 sm:pt-10 ${pad}`}>
+      <header className={`flex flex-col gap-6 pt-8 pb-2 sm:pt-10 ${pad}`}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 flex-col gap-2.5">
-            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${status.tone}`}>
+            <span className={`inline-flex w-fit items-center gap-1.5 text-[15px] font-semibold ${status.tone}`}>
               {running && <Spinner className="size-3" />}
               {status.label}
             </span>
@@ -219,9 +223,21 @@ export function ResultPanel({
           </div>
           {job?.status === "done" && (
             <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
-              <button type="button" onClick={onDownloadZip} disabled={saving} className={buttonPrimary}>
-                {saving ? <Spinner className="size-4" /> : <DownloadIcon className="size-4" />}
-                {entry.zipName} 저장
+              {/* 저장을 마치면 노란 버튼이 투명으로 바뀌어 "됐다"가 보인다 (iOS 앱과 같음) */}
+              <button
+                type="button"
+                onClick={onDownloadZip}
+                disabled={saving}
+                className={zipSaved ? buttonSecondaryLg : buttonPrimary}
+              >
+                {saving ? (
+                  <Spinner className="size-4" />
+                ) : zipSaved ? (
+                  <CheckIcon className="size-4 text-ok" />
+                ) : (
+                  <DownloadIcon className="size-4" />
+                )}
+                {saving ? "저장하는 중…" : zipSaved ? `${entry.zipName} 저장됨` : `${entry.zipName} 저장`}
               </button>
               <button
                 type="button"
@@ -230,17 +246,25 @@ export function ResultPanel({
                 title="512px PNG·WEBP 또는 3초 VP9 WEBM 으로 바꿔 저장합니다"
                 className={buttonSecondaryLg}
               >
-                {stickerProgress ? <Spinner className="size-4" /> : <SendIcon className="size-4" />}
+                {stickerProgress ? (
+                  <Spinner className="size-4" />
+                ) : stickersSaved ? (
+                  <CheckIcon className="size-4 text-ok" />
+                ) : (
+                  <SendIcon className="size-4" />
+                )}
                 {stickerProgress
                   ? `스티커로 바꾸는 중 ${stickerProgress.done}/${stickerProgress.total}`
-                  : "텔레그램 스티커로 저장"}
+                  : stickersSaved
+                    ? "스티커로 저장됨"
+                    : "텔레그램 스티커로 저장"}
               </button>
             </div>
           )}
         </div>
 
-        {job && job.status !== "fetching" && (
-          <div className="flex flex-wrap gap-x-10 gap-y-4">
+        {job && job.status !== "fetching" && !(job.status === "failed" && files.length === 0) && (
+          <div className="flex flex-wrap gap-x-10 gap-y-4 rounded-[22px] bg-surface px-5 py-4">
             <Stat label="이미지" value={files.length - videos} />
             <Stat label="영상" value={videos} />
             <Stat label="용량" value={formatBytes(files.reduce((s, f) => s + f.size, 0))} />
@@ -250,14 +274,14 @@ export function ResultPanel({
 
         {running && (
           <div className="flex items-center gap-3">
-            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
               {job && job.total > 0 ? (
                 <div
-                  className="h-full rounded-full bg-accent transition-[width] duration-300"
+                  className="h-full rounded-full bg-ink transition-[width] duration-300"
                   style={{ width: `${(job.processed / job.total) * 100}%` }}
                 />
               ) : (
-                <div className="animate-indeterminate absolute inset-y-0 w-2/5 rounded-full bg-accent" />
+                <div className="animate-indeterminate absolute inset-y-0 w-2/5 rounded-full bg-ink" />
               )}
             </div>
             {job && job.total > 0 && (
@@ -272,7 +296,7 @@ export function ResultPanel({
       <div className={`flex flex-col gap-5 py-7 ${pad}`}>
         {job?.error && <ErrorBox message={job.error} />}
         {stickerErrors.length > 0 && (
-          <details className="rounded-2xl border border-danger/25 bg-danger/5 px-5 py-4 text-sm text-danger">
+          <details className="rounded-[22px] bg-surface px-5 py-4 text-sm text-danger">
             <summary className="cursor-pointer font-medium">스티커로 바꾸지 못한 파일 {stickerErrors.length}개</summary>
             <ul className="mt-3 flex flex-col gap-1 font-mono text-xs">
               {stickerErrors.map((e) => (
@@ -287,9 +311,7 @@ export function ResultPanel({
         {files.length > 0 && (
           <>
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-[15px] font-semibold">
-                파일 <span className="text-muted tabular-nums">{files.length}</span>
-              </h2>
+              <h2 className="text-[20px] font-bold">파일 {files.length}개</h2>
               <div className="w-44">
                 <Segmented name={`view-${entry.key}`} value={view} options={VIEWS} onChange={setView} size="sm" />
               </div>
@@ -307,7 +329,7 @@ export function ResultPanel({
         )}
 
         {job && job.errors.length > 0 && (
-          <details className="rounded-2xl border border-line bg-surface px-5 py-4 text-sm">
+          <details className="rounded-[22px] bg-surface px-5 py-4 text-sm">
             <summary className="cursor-pointer font-medium">받지 못한 파일 {job.errors.length}개</summary>
             <ul className="mt-3 flex flex-col gap-1 font-mono text-xs text-muted">
               {job.errors.map((e) => (
