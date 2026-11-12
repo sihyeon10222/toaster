@@ -71,18 +71,21 @@ async function ensureSafeUrl(raw: string): Promise<URL> {
 /** 안전한 주소인지 확인하며 GET. 리다이렉트는 직접 따라가며 매번 검사한다. */
 export async function safeFetch(
   raw: string,
-  { referer, range }: { referer?: string; range?: string } = {},
+  { referer, range, userAgent = USER_AGENT }: { referer?: string; range?: string; userAgent?: string } = {},
 ): Promise<Response> {
   let url = raw;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
     const checked = await ensureSafeUrl(url);
     let res: Response;
+    // 제한 시간은 응답 머리를 받을 때까지만. 본문까지 걸면 큰 영상을 흘려보내다 중간에 끊긴다.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       res = await fetch(checked, {
         redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: controller.signal,
         headers: {
-          "User-Agent": USER_AGENT,
+          "User-Agent": userAgent,
           "Accept-Language": "ko,en;q=0.8",
           ...(referer ? { Referer: referer } : {}),
           ...(range ? { Range: range } : {}),
@@ -90,6 +93,8 @@ export async function safeFetch(
       });
     } catch {
       throw new FetchError(`연결하지 못했습니다: ${checked.hostname}`, 502);
+    } finally {
+      clearTimeout(timer);
     }
     const location = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && location) {

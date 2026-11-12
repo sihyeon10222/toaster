@@ -11,7 +11,7 @@ import { readImport } from "@/lib/bookmarklet";
 import { makeZip } from "@/lib/collect";
 import { saveBlob } from "@/lib/download";
 import { KAKAO_EMOTICON_SELECTOR, kakaoEmoticonUrl } from "@/lib/kakao";
-import { instagramCode } from "@/lib/instagram";
+import { detectPost, postFolderName } from "@/lib/post";
 import { clearPreviewCache } from "@/lib/preview-cache";
 import { convertToStickers, zipStickers, type StickerProgress } from "@/lib/telegram";
 import { isRunning, useJobs, type Entry, type Mode, type SaveKind } from "@/lib/use-jobs";
@@ -221,8 +221,8 @@ export function ToasterApp() {
       try {
         const u = new URL(imported.page);
         title = u.hostname.replace(/^www\./, "") + (u.pathname === "/" ? "" : u.pathname);
-        const code = instagramCode(imported.page);
-        zipName = `${saveName(code ? `instagram_${code}` : u.hostname)}.zip`;
+        const post = detectPost(imported.page);
+        zipName = `${saveName(post ? postFolderName(post) : u.hostname)}.zip`;
       } catch {}
       start(
         { url: imported.page, selector: "", media: "all", urls: imported.urls, title: imported.title },
@@ -327,8 +327,8 @@ export function ToasterApp() {
                 try {
                   const u = new URL(input.url);
                   title = u.hostname + (u.pathname === "/" ? "" : u.pathname);
-                  const code = instagramCode(input.url);
-                  zipName = `${saveName(code ? `instagram_${code}` : u.hostname)}.zip`;
+                  const post = detectPost(input.url);
+                  zipName = `${saveName(post ? postFolderName(post) : u.hostname)}.zip`;
                 } catch {}
                 start(input, { mode: "general", title, zipName });
               }}

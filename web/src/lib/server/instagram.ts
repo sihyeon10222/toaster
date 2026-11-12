@@ -1,20 +1,12 @@
 // 인스타그램 게시물·릴스. 게시물 페이지는 로그인 창과 자바스크립트로 그려서 그대로는 사진·영상이 없다.
-// 대신 누구나 볼 수 있는 "퍼가기(embed)" 페이지를 읽는다. iOS 앱의 Instagram.swift 와 같은 규칙이다.
+// 대신 누구나 볼 수 있는 "퍼가기(embed)" 페이지를 읽는다. iOS 앱의 Instagram.swift 와 같은 규칙이다. (연결은 post.ts)
 //
 //   여러 장·영상 게시물: <script> 안 contextJSON → gql_data.shortcode_media (video_url, display_url, 여러 장이면 children)
 //   사진 한 장 게시물:   <img class="EmbeddedMediaImage" srcset="… 1440w"> 에서 가장 큰 것
 import "server-only";
 import * as cheerio from "cheerio";
 
-export { INSTAGRAM_IMAGES, INSTAGRAM_VIDEOS, instagramCode } from "@/lib/instagram";
-import { INSTAGRAM_IMAGES, INSTAGRAM_VIDEOS } from "@/lib/instagram";
-
-export interface InstagramItem {
-  url: string;
-  isVideo: boolean;
-  /** 미리보기 그림 (영상은 표지) */
-  preview: string;
-}
+import type { PostItem as InstagramItem } from "@/lib/server/post";
 
 export const instagramEmbedUrl = (code: string) => `https://www.instagram.com/p/${code}/embed/captioned/`;
 
@@ -65,11 +57,4 @@ export function instagramItems(html: string): { items: InstagramItem[]; title: s
   }
   const user = $(".UsernameText").first().text().trim();
   return { items: best ? [{ url: best, isVideo: false, preview: best }] : [], title: user ? `@${user}` : "" };
-}
-
-/** 고른 이름표(사진·영상)에 맞는 주소만 */
-export function pickInstagram(items: InstagramItem[], selector: string) {
-  const images = selector.includes(INSTAGRAM_IMAGES);
-  const videos = selector.includes(INSTAGRAM_VIDEOS);
-  return items.filter((i) => (i.isVideo ? videos : images)).map((i) => i.url);
 }

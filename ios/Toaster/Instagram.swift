@@ -2,21 +2,12 @@ import Foundation
 import SwiftSoup
 
 /// 인스타그램 게시물·릴스. 게시물 페이지는 로그인 창과 자바스크립트로 그려서 그대로는 사진·영상이 없다.
-/// 대신 누구나 볼 수 있는 "퍼가기(embed)" 페이지를 읽는다. (웹의 lib/server/instagram.ts 와 같은 규칙)
+/// 대신 누구나 볼 수 있는 "퍼가기(embed)" 페이지를 읽는다. (웹의 lib/server/instagram.ts 와 같은 규칙, 연결은 Post.swift)
 ///
 ///   여러 장·영상 게시물: <script> 안 contextJSON → gql_data.shortcode_media (video_url, display_url, 여러 장이면 children)
 ///   사진 한 장 게시물:   <img class="EmbeddedMediaImage" srcset="… 1440w"> 에서 가장 큰 것
 enum Instagram {
-    /// "찾을 요소" 대신 쓰는 이름표. CSS 에 없는 모양이라 진짜 선택자와 헷갈리지 않는다.
-    static let imagesToken = ":instagram-image"
-    static let videosToken = ":instagram-video"
-
-    struct Item: Sendable {
-        let url: URL
-        let isVideo: Bool
-        /// 미리보기 그림 (영상은 표지)
-        let preview: URL?
-    }
+    typealias Item = PostItem
 
     /// 게시물·릴스 주소에서 게시물 코드를 뽑는다. 인스타그램 게시물이 아니면 nil.
     static func code(_ address: String) -> String? {
@@ -69,16 +60,6 @@ enum Instagram {
         let user = (try? doc.select(".UsernameText").first()?.text()) ?? ""
         guard let url = URL(string: best), !best.isEmpty else { return ([], "") }
         return ([Item(url: url, isVideo: false, preview: url)], user.isEmpty ? "" : "@\(user)")
-    }
-
-    /// 고른 이름표(사진·영상)에 맞는 주소만
-    static func pick(_ items: [Item], selector: String) -> [URL] {
-        let images = selector.contains(imagesToken), videos = selector.contains(videosToken)
-        return items.filter { $0.isVideo ? videos : images }.map(\.url)
-    }
-
-    static func isToken(_ selector: String) -> Bool {
-        selector.contains(imagesToken) || selector.contains(videosToken)
     }
 
     /// contextJSON 은 JSON 문자열 안에 JSON 이 한 번 더 들어 있다
