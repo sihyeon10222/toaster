@@ -44,7 +44,10 @@ final class SVGRenderer: NSObject, WKNavigationDelegate {
 
     /// 빈 페이지를 한 번 열어 둔 웹뷰 (스크립트만 돌리니 화면에 붙일 필요가 없다)
     private func prepare() async -> WKWebView {
-        if let ready { await ready.value; return webView! }
+        if let ready {
+            await ready.value
+            if let webView { return webView }
+        }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 10, height: 10), configuration: config)
@@ -67,6 +70,19 @@ final class SVGRenderer: NSObject, WKNavigationDelegate {
 
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         MainActor.assumeIsolated { finish() }
+    }
+
+    nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        MainActor.assumeIsolated { finish() }
+    }
+
+    /// 백그라운드에 오래 있으면 시스템이 웹뷰 프로세스를 끝낸다. 다음에 새로 만든다.
+    nonisolated func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        MainActor.assumeIsolated {
+            finish()
+            self.webView = nil
+            ready = nil
+        }
     }
 
     private func finish() {

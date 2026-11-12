@@ -13,7 +13,7 @@ enum Media: String, CaseIterable, Sendable {
     case image, video, all
 }
 
-enum JobStatus: Sendable {
+enum JobStatus: String, Sendable {
     case fetching, downloading, done, failed
 
     var isFinished: Bool { self == .done || self == .failed }
@@ -57,6 +57,8 @@ struct Job: Sendable {
     var images: [CollectedFile] = []
     var errors: [String] = []
     var error: String?
+    /// 받은 파일을 넣는 임시 폴더 (받는 중에도 캐시 삭제가 건드리지 않게 기록한다)
+    var folder: URL?
 }
 
 struct CollectError: LocalizedError {
@@ -108,13 +110,17 @@ enum Collector {
             return
         }
 
+        // 기록에서 지웠으면(취소) 여기서 멈춘다
+        if Task.isCancelled { return }
+
         // 2) 파일 받기 (병렬). 번호는 페이지 순서대로 매긴다.
+        // 앱을 껐다 켜도 남도록 임시 폴더가 아닌 History.jobsRoot 에 받는다
+        let folder = History.jobsRoot.appending(path: "toaster-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        job.folder = folder
         job.status = .downloading
         job.total = urls.count
         await update(job)
-
-        let folder = FileManager.default.temporaryDirectory.appending(path: "toaster-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let width = max(3, String(urls.count).count)
         var results = [CollectedFile?](repeating: nil, count: urls.count)
         var looks = [ImageLook?](repeating: nil, count: urls.count)
@@ -131,6 +137,10 @@ enum Collector {
             for _ in 0..<concurrency { addNext() }
 
             for await (index, result) in group {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    continue
+                }
                 switch result {
                 case .success(let (data, type)):
                     let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -157,6 +167,12 @@ enum Collector {
                 await update(job)
                 addNext()
             }
+        }
+
+        // 지운 작업이면 받아 둔 파일을 남기지 않는다
+        if Task.isCancelled {
+            try? FileManager.default.removeItem(at: folder)
+            return
         }
 
         // 같은 그림이 크기만 다르게 여러 번 나왔으면 가장 큰 것만 남긴다
@@ -219,7 +235,14 @@ enum Collector {
             throw CollectError(message: "연결하지 못했습니다 (\(req.url?.host() ?? ""))")
         }
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw CollectError(message: "HTTP \(http.statusCode)")
+            let reason = switch http.statusCode {
+            case 404, 410: "페이지를 찾을 수 없습니다. 주소를 확인해 주세요."
+            case 401, 403: "사이트가 접근을 막았습니다."
+            case 429: "요청이 너무 많다고 사이트가 막았습니다. 잠시 뒤 다시 해 주세요."
+            case 500...: "사이트 서버에 문제가 있습니다."
+            default: "받지 못했습니다."
+            }
+            throw CollectError(message: "\(reason) (HTTP \(http.statusCode))")
         }
         return (data, response)
     }
@@ -319,15 +342,29 @@ enum Collector {
     }
 
     /// srcset 에서 가장 큰 후보 ('1x', '640w' 같은 서술자 비교)
-    private static func bestFromSrcset(_ value: String) -> String? {
+    /// 주소 안에 쉼표가 있을 수 있어(w_100,h_100 같은 CDN 주소) HTML 규칙대로 "주소 → 서술자 → 쉼표" 순으로 읽는다.
+    static func bestFromSrcset(_ value: String) -> String? {
         var best: String?
         var bestScore = -1.0
-        for candidate in value.split(separator: ",") {
-            let bits = candidate.split(whereSeparator: \.isWhitespace)
-            guard let first = bits.first else { continue }
-            let score = bits.count > 1 ? Double(bits[1].dropLast()) ?? 1 : 1
+        var rest = Substring(value)
+        while true {
+            rest = rest.drop { $0.isWhitespace || $0 == "," }
+            guard !rest.isEmpty else { break }
+            var url = rest.prefix { !$0.isWhitespace }
+            rest = rest.dropFirst(url.count)
+            var descriptor = ""
+            if url.hasSuffix(",") {
+                // "a.jpg, b.jpg 2x" 의 "a.jpg," 처럼 서술자 없이 쉼표로 끝난 주소
+                while url.hasSuffix(",") { url = url.dropLast() }
+            } else {
+                let d = rest.prefix { $0 != "," }
+                rest = rest.dropFirst(d.count)
+                descriptor = d.trimmingCharacters(in: .whitespaces)
+            }
+            guard !url.isEmpty else { continue }
+            let score = descriptor.isEmpty ? 1 : Double(descriptor.split(whereSeparator: \.isWhitespace)[0].dropLast()) ?? 1
             if score > bestScore {
-                best = String(first)
+                best = String(url)
                 bestScore = score
             }
         }
@@ -562,11 +599,19 @@ final class PageRenderer: NSObject, WKNavigationDelegate {
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             continuation = c
             webView.load(URLRequest(url: url, timeoutInterval: 20))
+            // 끝없이 불러오는 페이지도 있어 30초가 지나면 그때까지 그린 것으로 진행한다
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(30))
+                guard let self, self.continuation != nil else { return }
+                self.webView.stopLoading()
+                self.finish(nil)
+            }
         }
-        // lazy-load 이미지를 깨우기 위해 끝까지 스크롤
+        // lazy-load 이미지를 깨우기 위해 끝까지 스크롤 (무한 스크롤 페이지는 15초까지만)
         _ = try? await webView.callAsyncJavaScript(
             """
-            for (let y = 0; y < document.body.scrollHeight; y += innerHeight) {
+            const end = Date.now() + 15000;
+            for (let y = 0; y < document.body.scrollHeight && Date.now() < end; y += innerHeight) {
                 scrollTo(0, y); await new Promise(r => setTimeout(r, 150));
             }
             await new Promise(r => setTimeout(r, 500));
@@ -590,6 +635,9 @@ final class PageRenderer: NSObject, WKNavigationDelegate {
     }
 
     private func finish(_ error: Error?) {
+        // 자바스크립트·meta 새로고침으로 다른 주소로 넘어가면 앞 요청이 "취소됨" 으로 끝난다. 다음 페이지를 기다린다.
+        if let error = error as? URLError, error.code == .cancelled { return }
+        if let error, (error as NSError).domain == NSURLErrorDomain, (error as NSError).code == NSURLErrorCancelled { return }
         guard let c = continuation else { return }
         continuation = nil
         if let error { c.resume(throwing: CollectError(message: "페이지를 열지 못했습니다: \(error.localizedDescription)")) }

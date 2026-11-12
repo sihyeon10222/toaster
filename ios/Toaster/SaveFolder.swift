@@ -46,23 +46,32 @@ final class SaveFolder {
     }
 
     /// 고른 폴더 안에 `name` 폴더를 새로 만들고(이미 있으면 "name_2", "name_3" …) 파일들을 넣는다. 만든 폴더를 돌려준다.
-    func write(_ files: [(name: String, source: URL)], into name: String) throws -> URL {
-        guard let root = url else { throw CollectError(message: "저장할 폴더를 먼저 골라 주세요.") }
+    /// 파일 복사가 오래 걸릴 수 있어 메인 스레드 밖에서 부른다.
+    nonisolated static func write(_ files: [(name: String, source: URL)], into name: String, root: URL) throws -> URL {
         let scoped = root.startAccessingSecurityScopedResource()
         defer { if scoped { root.stopAccessingSecurityScopedResource() } }
 
         let fm = FileManager.default
+        // 같은 이름이 있으면 name_2, name_3 … (만들기에 성공한 폴더만 우리 것이다)
         var target = root.appending(path: name, directoryHint: .isDirectory)
         var n = 2
-        while fm.fileExists(atPath: target.path(percentEncoded: false)) {
-            target = root.appending(path: "\(name)_\(n)", directoryHint: .isDirectory)
-            n += 1
+        while true {
+            do {
+                try fm.createDirectory(at: target, withIntermediateDirectories: false)
+                break
+            } catch where n < 10_000 && fm.fileExists(atPath: target.path(percentEncoded: false)) {
+                target = root.appending(path: "\(name)_\(n)", directoryHint: .isDirectory)
+                n += 1
+            } catch {
+                throw CollectError(message: "폴더를 만들지 못했습니다. 설정에서 저장 폴더를 다시 골라 주세요. (\(error.localizedDescription))")
+            }
         }
         do {
-            try fm.createDirectory(at: target, withIntermediateDirectories: true)
             for file in files { try fm.copyItem(at: file.source, to: target.appending(path: file.name)) }
         } catch {
-            throw CollectError(message: "폴더에 저장하지 못했습니다. 폴더를 다시 골라 주세요. (\(error.localizedDescription))")
+            // 방금 만든 폴더에 반쯤 들어간 파일은 남기지 않는다
+            try? fm.removeItem(at: target)
+            throw CollectError(message: "폴더에 저장하지 못했습니다. 설정에서 저장 폴더를 다시 골라 주세요. (\(error.localizedDescription))")
         }
         return target
     }
@@ -86,8 +95,13 @@ final class SaveFolder {
         guard let url = try? URL(resolvingBookmarkData: data, options: options, relativeTo: nil, bookmarkDataIsStale: &stale) else {
             return nil
         }
-        if stale, let fresh = try? url.bookmarkData(options: bookmarkOptions, includingResourceValuesForKeys: nil, relativeTo: nil) {
-            UserDefaults.standard.set(fresh, forKey: bookmarkKey)
+        if stale {
+            // 오래된 북마크는 폴더에 접근한 상태에서 새로 만들어야 한다
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            if let fresh = try? url.bookmarkData(options: bookmarkOptions, includingResourceValuesForKeys: nil, relativeTo: nil) {
+                UserDefaults.standard.set(fresh, forKey: bookmarkKey)
+            }
         }
         return url
     }
