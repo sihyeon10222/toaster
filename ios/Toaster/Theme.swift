@@ -86,17 +86,31 @@ struct PasteLinkButton: View {
     var body: some View {
         Group {
             if text.isEmpty {
+                #if targetEnvironment(macCatalyst)
+                // 맥(Catalyst)에서는 시스템 붙여넣기 버튼이 보이지 않아서 같은 모양의 버튼으로 클립보드를 읽는다 (맥은 허용 알림이 없다)
+                Button("붙여넣기", systemImage: "doc.on.clipboard") {
+                    if let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                        onPaste(text)
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderedProminent)
+                .foregroundStyle(.background)
+                #else
                 PasteButton(payloadType: String.self) { strings in
                     if let text = strings.first?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
                         Task { @MainActor in onPaste(text) }
                     }
                 }
                 .labelStyle(.iconOnly)
+                #endif
             } else {
                 Button("모두 지우기", systemImage: "xmark", action: onClear)
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderedProminent)
                     .fontWeight(.semibold)
+                    // 검은 바탕 위 X 는 바탕색(밝은 화면에선 흰색)으로 그려야 보인다
+                    .foregroundStyle(.background)
             }
         }
         .buttonBorderShape(.capsule)

@@ -37,6 +37,10 @@ struct ContentView: View {
                 history
             }
             .formStyle(.grouped)
+            // 아이패드·맥처럼 넓은 화면에서는 내용을 가운데 읽기 좋은 폭으로 모은다
+            // (좁은 화면에는 손대지 않는다. 0 을 넣으면 아이폰 기본 여백까지 없어져 칸이 화면 끝에 붙는다)
+            .contentMargins(.horizontal, ReadableWidth.margin, for: .scrollContent, applying: ReadableWidth.margin > 0)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { ReadableWidth.width = $0 }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("toaster")
             .toolbar {
@@ -352,4 +356,22 @@ private func timeAgo(_ date: Date) -> String {
 
 #Preview {
     ContentView()
+}
+
+/// 넓은 화면에서 목록을 최대 720pt 폭으로 가운데 둔다
+@MainActor
+@Observable
+final class ReadableWidthModel {
+    var width: CGFloat = 0
+    var margin: CGFloat { max(0, (width - 720) / 2) }
+}
+
+@MainActor let ReadableWidth = ReadableWidthModel()
+
+private extension View {
+    /// applying 이 false 면 시스템 기본 여백을 그대로 둔다
+    @ViewBuilder
+    func contentMargins(_ edges: Edge.Set, _ length: CGFloat, for placement: ContentMarginPlacement, applying: Bool) -> some View {
+        if applying { contentMargins(edges, length, for: placement) } else { self }
+    }
 }
