@@ -19,7 +19,8 @@ const MODES: { value: Mode; label: string }[] = [
   { value: "general", label: "일반 페이지" },
   { value: "kakao", label: "카카오 이모티콘" },
 ];
-const DEFAULT_MODE: Mode = "kakao";
+// 처음 보이는 탭은 왼쪽 첫 번째인 일반 페이지
+const DEFAULT_MODE: Mode = "general";
 
 /** 저장할 zip 이름: 끝주소·사이트 주소의 - 를 _ 로 (iOS 앱의 폴더 이름과 같은 규칙) */
 const saveName = (name: string) => name.replaceAll("-", "_");

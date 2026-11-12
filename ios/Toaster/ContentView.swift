@@ -4,7 +4,8 @@ struct ContentView: View {
     @State private var store = JobStore()
     @State private var folder = SaveFolder()
     @State private var showingSettings = false
-    @State private var mode: Mode = .kakao
+    // 처음 보이는 탭은 왼쪽 첫 번째인 일반 페이지
+    @State private var mode: Mode = .general
     @State private var path: [String] = []
 
     // 입력값은 여기 두어 모드를 바꿔도 남게 한다
@@ -63,6 +64,7 @@ struct ContentView: View {
         // 개발용: `-autoKakao <끝주소>` 로 실행하면 바로 받기를 시작한다 (출시 빌드에는 없음)
         .task {
             if let slug = UserDefaults.standard.string(forKey: "autoKakao"), store.entries.isEmpty {
+                mode = .kakao
                 kakaoInput = "https://e.kakao.com/t/\(slug)"
                 startKakao(slug)
             }
@@ -135,7 +137,7 @@ struct ContentView: View {
         pageURL = ""
         render = false
         media = .all
-        mode = .kakao
+        mode = .general
         path = []
         showingSettings = false
     }
